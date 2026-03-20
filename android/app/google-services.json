@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "285671506435",
+    "project_id": "familyos-7fd92",
+    "storage_bucket": "familyos-7fd92.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:285671506435:android:053a0ef8852d0ef1314436",
+        "android_client_info": {
+          "package_name": "com.example.familyos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAivJRMpvzKMkzmMETjoWKG-KYIC-1ViE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
