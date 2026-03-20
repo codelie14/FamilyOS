@@ -52,9 +52,7 @@ class _VaultScreenState extends State<VaultScreen> {
           Expanded(
             child: _unlocked ? _buildContent() : _buildLock(),
           ),
-          AppBottomNavBar(currentIndex: 0, onTap: (i) {
-            if (i == 0) Navigator.pop(context);
-          }),
+          AppBottomNavBar(currentIndex: 0, onTap: (i) => handleNavBarTap(context, i, 0)),
         ],
       ),
     );

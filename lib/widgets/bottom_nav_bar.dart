@@ -76,6 +76,24 @@ class AppBottomNavBar extends StatelessWidget {
   }
 }
 
+/// Global helper to navigate gracefully
+void handleNavBarTap(BuildContext context, int newIndex, int currentIndex) {
+  if (newIndex == currentIndex) return;
+  // Handle center FAB (index 2) usually as action, not route, 
+  // but if needed we can open a modal. For now just generic print or ignore.
+  if (newIndex == 2) return;
+  
+  String routeName;
+  switch (newIndex) {
+    case 0: routeName = '/home'; break;
+    case 1: routeName = '/files'; break;
+    case 3: routeName = '/chat_list'; break;
+    case 4: routeName = '/profile'; break;
+    default: return;
+  }
+  Navigator.pushReplacementNamed(context, routeName);
+}
+
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.index,

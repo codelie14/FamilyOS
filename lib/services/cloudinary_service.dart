@@ -1,7 +1,6 @@
 import 'dart:io';
-import 'package:cloudinary_api/cloudinary_api.dart';
 import 'package:cloudinary_api/uploader/cloudinary_uploader.dart';
-import 'package:cloudinary_api/src/request/upload_request.dart';
+import 'package:cloudinary_api/src/request/model/uploader_params.dart';
 import 'package:cloudinary_url_gen/cloudinary.dart';
 
 class CloudinaryService {
@@ -27,14 +26,13 @@ class CloudinaryService {
       // NOTE: Using the cloudinary_api package usually requires the apiSecret.
       // If doing unsigned uploads, you'd perform a direct HTTP POST to:
       // https://api.cloudinary.com/v1_1/$cloudName/image/upload
-      // with the 'upload_preset' in the body.
 
       var response = await cloudinary.uploader().upload(
         file,
         params: UploadParams(folder: folder, resourceType: 'auto'),
       );
 
-      return response?.secureUrl;
+      return response?.data?.secureUrl;
     } catch (e) {
       print('Cloudinary upload error: $e');
       return null;

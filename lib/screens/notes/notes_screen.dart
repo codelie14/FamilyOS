@@ -103,9 +103,7 @@ class NotesScreen extends StatelessWidget {
               ],
             ),
           ),
-          AppBottomNavBar(currentIndex: 0, onTap: (i) {
-            if (i == 0) Navigator.pop(context);
-          }),
+          AppBottomNavBar(currentIndex: 0, onTap: (i) => handleNavBarTap(context, i, 0)),
         ],
       ),
     );

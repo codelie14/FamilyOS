@@ -190,9 +190,7 @@ class _GalleryScreenState extends State<GalleryScreen> {
               ],
             ),
           ),
-          AppBottomNavBar(currentIndex: 1, onTap: (i) {
-            if (i == 0) Navigator.pop(context);
-          }),
+          AppBottomNavBar(currentIndex: 1, onTap: (i) => handleNavBarTap(context, i, 1)),
         ],
       ),
     );

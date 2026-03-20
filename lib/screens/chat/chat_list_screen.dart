@@ -12,8 +12,6 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  int _navIndex = 3;
-
   final List<_Conv> _conversations = const [
     _Conv('🏠', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
         'Famille Dubois 👨‍👩‍👧‍👦', 'Lucas : On se retrouve à 18h ?', '09:38', 3, true, isGroup: true),
@@ -144,9 +142,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
               ],
             ),
           ),
-          AppBottomNavBar(currentIndex: _navIndex, onTap: (i) {
-            if (i == 0) Navigator.pop(context);
-          }),
+          AppBottomNavBar(currentIndex: 3, onTap: (i) => handleNavBarTap(context, i, 3)),
         ],
       ),
     );

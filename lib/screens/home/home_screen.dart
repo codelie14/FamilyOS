@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
-import '../../widgets/gradient_widgets.dart';
 import '../chat/chat_list_screen.dart';
 import '../files/files_screen.dart';
-import '../profile/profile_screen.dart';
-
+import '../gallery/gallery_screen.dart';
+import '../calendar/calendar_screen.dart';
+import '../tasks/tasks_screen.dart';
+import '../vault/vault_screen.dart';
+import '../notes/notes_screen.dart';
 // ─── Model helpers ────────────────────────────────────────────────────────────
 class _Member {
   final String initials;
@@ -41,8 +43,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _navIndex = 0;
-
   final List<_Member> _members = const [
     _Member('A', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]), true, 'Admin'),
     _Member('M', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]), true, 'Marie'),
@@ -67,27 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _Activity(Icons.check_box_outlined, kOrange, 'Tâche terminée : Courses', 'Assignée à Sophie', '1h'),
     _Activity(Icons.folder_outlined, kCyan, 'Contrat_Maison.pdf partagé', 'Coffre sécurisé', '3h'),
   ];
-
-  void _onNavTap(int index) {
-    if (index == _navIndex) return;
-    setState(() => _navIndex = index);
-    Widget? screen;
-    switch (index) {
-      case 1:
-        screen = const FilesScreen();
-        break;
-      case 3:
-        screen = const ChatListScreen();
-        break;
-      case 4:
-        screen = const ProfileScreen();
-        break;
-    }
-    if (screen != null) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => screen!))
-          .then((_) => setState(() => _navIndex = 0));
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          AppBottomNavBar(currentIndex: _navIndex, onTap: _onNavTap),
+          AppBottomNavBar(currentIndex: 0, onTap: (i) => handleNavBarTap(context, i, 0)),
         ],
       ),
     );
@@ -310,29 +289,49 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisCount: 4,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.9,
+        childAspectRatio: 0.82,
       ),
       itemBuilder: (context, i) {
         final a = _actions[i];
-        return Column(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: a.tint.withAlpha(38),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: a.tint.withAlpha(51), width: 1),
+        return GestureDetector(
+          onTap: () {
+            Widget? screen;
+            switch (i) {
+              case 0: screen = const ChatListScreen(); break;
+              case 1: screen = const GalleryScreen(); break;
+              case 2: screen = const CalendarScreen(); break;
+              case 3: screen = const TasksScreen(); break;
+              case 4: screen = const VaultScreen(); break;
+              case 5: screen = const FilesScreen(); break;
+              case 6: screen = const NotesScreen(); break;
+              case 7: // Localisation not implemented
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bientôt disponible !')));
+                break;
+            }
+            if (screen != null) {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));
+            }
+          },
+          child: Column(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: a.tint.withAlpha(38),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: a.tint.withAlpha(51), width: 1),
+                ),
+                child: Icon(a.icon, color: a.tint, size: 22),
               ),
-              child: Icon(a.icon, color: a.tint, size: 22),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              a.label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                a.label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted),
+              ),
+            ],
+          ),
         );
       },
     );
