@@ -9,17 +9,10 @@ import '../calendar/calendar_screen.dart';
 import '../tasks/tasks_screen.dart';
 import '../vault/vault_screen.dart';
 import '../notes/notes_screen.dart';
+import '../location/location_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
 // ─── Model helpers ────────────────────────────────────────────────────────────
-class _Member {
-  final String initials;
-  final LinearGradient gradient;
-  final bool isOnline;
-  final String name;
-  const _Member(this.initials, this.gradient, this.isOnline, this.name);
-}
-
 class _QuickAction {
   final IconData icon;
   final String label;
@@ -38,12 +31,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _db = FirestoreService();
 
-  final List<_Member> _members = const [
-    _Member('A', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]), true, 'Admin'),
-    _Member('M', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]), true, 'Marie'),
-    _Member('L', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]), false, 'Lucas'),
-    _Member('S', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]), false, 'Sophie'),
-  ];
+  LinearGradient _getGrad(int index) {
+    const list = [
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kOrange, kPink]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
+    ];
+    return list[index % list.length];
+  }
 
   final List<_QuickAction> _actions = const [
     _QuickAction(Icons.chat_bubble_outline, 'Chat', kPurple),
@@ -196,9 +193,21 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  _HeroStat(value: '4', label: 'Membres'),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _db.getMembersStream(),
+                    builder: (context, snap) {
+                      final count = snap.hasData ? snap.data!.docs.length : 0;
+                      return _HeroStat(value: count.toString(), label: 'Membres');
+                    },
+                  ),
                   _heroDivider(),
-                  _HeroStat(value: '3', label: 'Événements'),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _db.getEventsStream(),
+                    builder: (context, snap) {
+                      final count = snap.hasData ? snap.data!.docs.length : 0;
+                      return _HeroStat(value: count.toString(), label: 'Événements');
+                    },
+                  ),
                   _heroDivider(),
                   StreamBuilder<QuerySnapshot>(
                     stream: _db.getTasksStream(),
@@ -234,48 +243,62 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMembersRow() {
     return SizedBox(
       height: 84,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          ..._members.map((m) => Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Column(
-                  children: [
-                    MemberAvatar(
-                      initials: m.initials,
-                      gradient: m.gradient,
-                      isOnline: m.isOnline,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(m.name,
-                        style: const TextStyle(
-                          fontFamily: 'Nunito',
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: kTextMuted,
-                        )),
-                  ],
-                ),
-              )),
-          // Add member
-          Column(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: _db.getMembersStream(),
+        builder: (context, snapshot) {
+          final docs = snapshot.data?.docs ?? [];
+          return ListView(
+            scrollDirection: Axis.horizontal,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: kSurface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withAlpha(30), width: 1.5),
-                ),
-                child: const Icon(Icons.add, color: kTextDim, size: 20),
+              ...docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final name = data['name'] ?? '?';
+                final initial = data['initial'] ?? name[0].toUpperCase();
+                final isOnline = data['isOnline'] ?? false;
+                final grad = _getGrad(data['colorIndex'] ?? 0);
+                
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: Column(
+                    children: [
+                      MemberAvatar(
+                        initials: initial,
+                        gradient: grad,
+                        isOnline: isOnline,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(name,
+                          style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: kTextMuted,
+                          )),
+                    ],
+                  ),
+                );
+              }),
+              // Add member placeholder
+              Column(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: kSurface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withAlpha(30), width: 1.5),
+                    ),
+                    child: const Icon(Icons.add, color: kTextDim, size: 20),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text('Ajouter',
+                      style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
+                ],
               ),
-              const SizedBox(height: 6),
-              const Text('Ajouter',
-                  style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
             ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -304,9 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
               case 4: screen = const VaultScreen(); break;
               case 5: screen = const FilesScreen(); break;
               case 6: screen = const NotesScreen(); break;
-              case 7: // Localisation not implemented
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bientôt disponible !')));
-                break;
+              case 7: screen = const LocationScreen(); break;
             }
             if (screen != null) {
               Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));
@@ -338,43 +359,58 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEventCard() {
-    return SurfaceCard(
-      padding: const EdgeInsets.all(16),
-      radius: 16,
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(gradient: kGradMain, borderRadius: BorderRadius.circular(12)),
-            child: const Column(
-              children: [
-                Text('24', style: TextStyle(fontFamily: 'Nunito', fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, height: 1)),
-                Text('MARS', style: TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white70)),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Anniversaire de Sophie 🎂',
-                    style: TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
-                SizedBox(height: 4),
-                Row(
+    return StreamBuilder<QuerySnapshot>(
+      stream: _db.getEventsStream(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text("Aucun événement prévu", style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+          );
+        }
+        final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
+        final title = data['title'] ?? 'Sans nom';
+        final time = data['time'] ?? 'Heure non définie';
+        final grad = _getGrad(data['colorIndex'] ?? 0);
+        
+        return SurfaceCard(
+          padding: const EdgeInsets.all(16),
+          radius: 16,
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(gradient: grad, borderRadius: BorderRadius.circular(12)),
+                child: const Column(
                   children: [
-                    Icon(Icons.access_time_outlined, size: 12, color: kTextDim),
-                    SizedBox(width: 4),
-                    Text('18:00 • Restaurant',
-                        style: TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
+                    Text('Bientôt', style: TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, height: 1)),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.access_time_outlined, size: 12, color: kTextDim),
+                        const SizedBox(width: 4),
+                        Text(time,
+                            style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              _miniAvatars(),
+            ],
           ),
-          _miniAvatars(),
-        ],
-      ),
+        );
+      },
     );
   }
 

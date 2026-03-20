@@ -1,10 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
 import '../../services/firestore_service.dart';
+import '../../services/cloudinary_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
@@ -16,40 +20,54 @@ class FilesScreen extends StatefulWidget {
 class _FilesScreenState extends State<FilesScreen> {
   final FirestoreService _db = FirestoreService();
 
-  void _showAddFileDialog(BuildContext context) {
-    final titleCtrl = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: const Text('Uploader un fichier', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: TextField(
-          controller: titleCtrl,
-          style: const TextStyle(color: kText),
-          decoration: const InputDecoration(hintText: 'Nom du fichier...', hintStyle: TextStyle(color: kTextMuted)),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          TextButton(
-            onPressed: () {
-              if (titleCtrl.text.isNotEmpty) {
-                final isImage = titleCtrl.text.toLowerCase().endsWith('.jpg') || titleCtrl.text.toLowerCase().endsWith('.png');
-                final isVideo = titleCtrl.text.toLowerCase().endsWith('.mp4');
-                _db.addFile({
-                  'name': titleCtrl.text.trim(),
-                  'size': '${1 + (DateTime.now().millisecond % 5)}.4 MB',
-                  'uploader': 'A',
-                  'type': isImage ? 'image' : (isVideo ? 'video' : 'doc'),
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Uploader', style: TextStyle(color: kPurple)),
-          ),
-        ],
-      ),
+  final CloudinaryService _cloudinaryService = CloudinaryService();
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadFile(BuildContext context) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png', 'mp4'],
     );
+    
+    if (result == null || result.files.single.path == null) return;
+    
+    setState(() => _isUploading = true);
+    
+    try {
+      final file = File(result.files.single.path!);
+      final fileName = result.files.single.name;
+      final fileSizeKb = (await file.length()) / 1024;
+      final sizeStr = fileSizeKb > 1024 ? '${(fileSizeKb / 1024).toStringAsFixed(1)} MB' : '${fileSizeKb.toStringAsFixed(0)} KB';
+      
+      final url = await _cloudinaryService.uploadImage(file, folder: 'familyos_files');
+      
+      if (url != null) {
+        final ext = fileName.split('.').last.toLowerCase();
+        final isImage = ['jpg', 'jpeg', 'png', 'gif'].contains(ext);
+        final isVideo = ['mp4', 'mov', 'avi'].contains(ext);
+        final user = FirebaseAuth.instance.currentUser;
+        
+        await _db.addFile({
+          'name': fileName,
+          'size': sizeStr,
+          'url': url,
+          'uploader': user?.displayName?.substring(0, 1) ?? 'A',
+          'type': isImage ? 'image' : (isVideo ? 'video' : 'doc'),
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fichier importé avec succès')));
+        }
+      } else {
+        throw Exception('Cloudinary upload return null URL');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
   }
 
   @override
@@ -72,10 +90,12 @@ class _FilesScreenState extends State<FilesScreen> {
                   children: [
                     AppIconButton(icon: const Icon(Icons.search, color: kTextMuted, size: 18)),
                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => _showAddFileDialog(context),
-                      child: AppIconButton(isAccent: true, icon: const Icon(Icons.upload, color: Colors.white, size: 18)),
-                    ),
+                    _isUploading
+                      ? const Padding(padding: EdgeInsets.all(8), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: kCyan)))
+                      : GestureDetector(
+                          onTap: () => _pickAndUploadFile(context),
+                          child: AppIconButton(isAccent: true, icon: const Icon(Icons.upload, color: Colors.white, size: 18)),
+                        ),
                   ],
                 ),
               ],

@@ -11,11 +11,13 @@ class ChatConversationScreen extends StatefulWidget {
     required this.name,
     required this.initial,
     required this.gradient,
+    this.dmId,
   });
 
   final String name;
   final String initial;
   final LinearGradient gradient;
+  final String? dmId;
 
   @override
   State<ChatConversationScreen> createState() => _ChatConversationScreenState();
@@ -34,10 +36,18 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     final email = _authService.currentUser?.email ?? 'Unknown';
     _textController.clear();
     
-    await _firestoreService.sendChatMessage(
-      senderName: email,
-      text: text,
-    );
+    if (widget.dmId != null) {
+      await _firestoreService.sendDirectMessage(
+        dmId: widget.dmId!,
+        senderName: email,
+        text: text,
+      );
+    } else {
+      await _firestoreService.sendChatMessage(
+        senderName: email,
+        text: text,
+      );
+    }
   }
 
   @override
@@ -100,7 +110,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
           // Messages
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _firestoreService.getFamilyChatStream(),
+              stream: widget.dmId != null
+                  ? _firestoreService.getDirectMessageStream(widget.dmId!)
+                  : _firestoreService.getFamilyChatStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: kPurple));

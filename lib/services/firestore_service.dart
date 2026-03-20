@@ -106,4 +106,23 @@ class FirestoreService {
     chatData['lastTime'] = FieldValue.serverTimestamp();
     await _db.collection('direct_chats').add(chatData);
   }
+
+  Stream<QuerySnapshot> getDirectMessageStream(String dmId) {
+    return _db.collection('direct_chats').doc(dmId).collection('messages').orderBy('timestamp', descending: true).snapshots();
+  }
+
+  Future<void> sendDirectMessage({required String dmId, required String senderName, String? text, String? imageUrl}) async {
+    await _db.collection('direct_chats').doc(dmId).collection('messages').add({
+      'senderName': senderName,
+      'text': text,
+      'imageUrl': imageUrl,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    
+    // Update the last message time and preview on the main chat document
+    await _db.collection('direct_chats').doc(dmId).update({
+      'lastTime': FieldValue.serverTimestamp(),
+      'preview': text ?? 'Image jointe',
+    });
+  }
 }

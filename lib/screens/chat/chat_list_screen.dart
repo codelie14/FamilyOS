@@ -235,12 +235,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       return const Center(child: CircularProgressIndicator(color: kPurple));
                     }
                     final dmDocs = dmSnap.data?.docs ?? [];
-                    final dms = dmDocs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+                    final dms = dmDocs.map((doc) {
+                      final d = doc.data() as Map<String, dynamic>;
+                      d['id'] = doc.id;
+                      return d;
+                    }).toList();
 
                     return ListView(
                       children: [
                         _dateSep('Aujourd\'hui'),
-                        _convTile(_Conv('🏠', const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
+                        _convTile(_Conv(null, '🏠', const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
                             'Famille Dubois 👨‍👩‍👧‍👦', lastFamMsg, lastFamTime, 0, true, isGroup: true)),
                         if (dms.isNotEmpty) _dateSep('Messages directs'),
                         ...dms.map((data) {
@@ -248,6 +252,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               ? DateFormat('dd MMM').format((data['lastTime'] as Timestamp).toDate())
                               : '';
                           return _convTile(_Conv(
+                            data['id'],
                             data['initial'] ?? '?',
                             _getGrad(data['colorIndex'] ?? 0),
                             data['name'] ?? 'Inconnu',
@@ -287,6 +292,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
             name: c.name,
             initial: c.initial,
             gradient: c.gradient,
+            dmId: c.id,
           ),
         ),
       ),
@@ -374,6 +380,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
 }
 
 class _Conv {
+  final String? id;
   final String initial;
   final LinearGradient gradient;
   final String name;
@@ -382,5 +389,5 @@ class _Conv {
   final int unread;
   final bool isOnline;
   final bool isGroup;
-  const _Conv(this.initial, this.gradient, this.name, this.preview, this.time, this.unread, this.isOnline, {this.isGroup = false});
+  const _Conv(this.id, this.initial, this.gradient, this.name, this.preview, this.time, this.unread, this.isOnline, {this.isGroup = false});
 }

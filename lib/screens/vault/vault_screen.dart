@@ -33,6 +33,64 @@ class _VaultScreenState extends State<VaultScreen> {
     if (_pin.isNotEmpty) setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
+  void _showAddSecretDialog() {
+    final titleCtrl = TextEditingController();
+    final secretCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Nouveau secret', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: titleCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Titre (ex: Netflix)', hintStyle: TextStyle(color: kTextMuted))),
+            const SizedBox(height: 10),
+            TextField(controller: secretCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Mot de passe...', hintStyle: TextStyle(color: kTextMuted))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () {
+              if (titleCtrl.text.isNotEmpty && secretCtrl.text.isNotEmpty) {
+                _db.addVaultSecret({
+                  'title': titleCtrl.text.trim(),
+                  'secret': secretCtrl.text.trim(),
+                  'type': 'password',
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Créer', style: TextStyle(color: kPurple)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showSecretDetailsDialog(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: Text(data['title'] ?? 'Secret', style: const TextStyle(fontFamily: 'Sora', color: kText)),
+        content: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: kBg2, borderRadius: BorderRadius.circular(12)),
+          child: SelectableText(
+            data['secret'] ?? 'Contenu vide',
+            style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, fontWeight: FontWeight.w700, color: kCyan, letterSpacing: 1),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,7 +107,10 @@ class _VaultScreenState extends State<VaultScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Coffre', style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
-                AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                GestureDetector(
+                  onTap: _showAddSecretDialog,
+                  child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                ),
               ],
             ),
           ),
@@ -207,32 +268,35 @@ class _VaultScreenState extends State<VaultScreen> {
                 final color = isPassword ? kCyan : kOrange;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: SurfaceCard(
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(10)),
-                          child: Icon(icon, color: color, size: 17),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(title, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                              const Text('••••••••••', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted, letterSpacing: 2)),
-                            ],
+                  child: GestureDetector(
+                    onTap: () => _showSecretDetailsDialog(data),
+                    child: SurfaceCard(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(10)),
+                            child: Icon(icon, color: color, size: 17),
                           ),
-                        ),
-                        Container(
-                          width: 30,
-                          height: 30,
-                          decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
-                          child: const Icon(Icons.copy, color: kTextMuted, size: 13),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(title, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+                                const Text('••••••••••', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted, letterSpacing: 2)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
+                            child: const Icon(Icons.visibility_outlined, color: kTextMuted, size: 13),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
