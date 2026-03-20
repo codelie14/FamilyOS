@@ -3,6 +3,9 @@ import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
 import 'chat_conversation_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import '../../services/firestore_service.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -12,25 +15,86 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  final List<_Conv> _conversations = const [
-    _Conv('🏠', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
-        'Famille Dubois 👨‍👩‍👧‍👦', 'Lucas : On se retrouve à 18h ?', '09:38', 3, true, isGroup: true),
-    _Conv('M', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]),
-        'Marie', "J'ai partagé les photos des vacances 📸", '09:15', 1, true),
-    _Conv('L', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]),
-        'Lucas', 'Ok papa, à demain !', 'Hier', 0, false),
-    _Conv('S', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]),
-        'Sophie', 'Merci pour le gâteau 🎂❤️', 'Hier', 0, false),
-    _Conv('👴', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kOrange, kPink]),
-        'Grand-père Robert', '📎 Contrat_Maison.pdf', 'Lun', 0, false),
-  ];
+  final FirestoreService _db = FirestoreService();
 
-  final List<_OnlinePerson> _online = const [
-    _OnlinePerson('M', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]), 'Marie', true),
-    _OnlinePerson('A', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]), 'Admin', true),
-    _OnlinePerson('L', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]), 'Lucas', false),
-    _OnlinePerson('S', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]), 'Sophie', false),
-  ];
+  LinearGradient _getGrad(int index) {
+    const list = [
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kOrange, kPink]),
+      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kPink]),
+    ];
+    return list[index % list.length];
+  }
+
+  void _showAddDMDialog() {
+    final nameCtrl = TextEditingController();
+    final msgCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Nouveau message direct', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom du contact...', hintStyle: TextStyle(color: kTextMuted))),
+            const SizedBox(height: 10),
+            TextField(controller: msgCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Message...', hintStyle: TextStyle(color: kTextMuted))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () {
+              if (nameCtrl.text.isNotEmpty) {
+                _db.addDirectChat({
+                  'name': nameCtrl.text.trim(),
+                  'initial': nameCtrl.text.trim()[0].toUpperCase(),
+                  'preview': msgCtrl.text.trim(),
+                  'unreadCount': 1,
+                  'isOnline': DateTime.now().millisecond % 2 == 0,
+                  'colorIndex': DateTime.now().millisecond % 5,
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Créer', style: TextStyle(color: kPurple)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddMemberDialog() {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Ajouter un membre', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom...', hintStyle: TextStyle(color: kTextMuted))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () {
+              if (nameCtrl.text.isNotEmpty) {
+                _db.addMember({
+                  'name': nameCtrl.text.trim(),
+                  'initial': nameCtrl.text.trim()[0].toUpperCase(),
+                  'isOnline': true,
+                  'colorIndex': DateTime.now().millisecond % 5,
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Ajouter', style: TextStyle(color: kPurple)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +117,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   children: [
                     AppIconButton(icon: const Icon(Icons.search, color: kTextMuted, size: 18)),
                     const SizedBox(width: 8),
-                    AppIconButton(icon: const Icon(Icons.edit_outlined, color: kTextMuted, size: 18), showDot: true),
+                    GestureDetector(
+                      onTap: _showAddDMDialog,
+                      onLongPress: _showAddMemberDialog,
+                      child: AppIconButton(icon: const Icon(Icons.edit_outlined, color: kTextMuted, size: 18), showDot: true),
+                    ),
                   ],
                 ),
               ],
@@ -82,64 +150,118 @@ class _ChatListScreenState extends State<ChatListScreen> {
           // Online strip
           SizedBox(
             height: 72,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-              itemCount: _online.length,
-              itemBuilder: (context, i) {
-                final o = _online[i];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: Column(
-                    children: [
-                      Stack(
-                        clipBehavior: Clip.none,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _db.getMembersStream(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('Aucun membre en ligne', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted, fontSize: 12)));
+                }
+                final docs = snapshot.data!.docs;
+                return ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  itemCount: docs.length,
+                  itemBuilder: (context, i) {
+                    final data = docs[i].data() as Map<String, dynamic>;
+                    final name = data['name'] ?? '?';
+                    final initial = data['initial'] ?? name[0].toUpperCase();
+                    final isOnline = data['isOnline'] ?? false;
+                    final grad = _getGrad(data['colorIndex'] ?? i);
+
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: Column(
                         children: [
-                          Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              gradient: o.gradient,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.white.withAlpha(20), width: 2),
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(o.initial, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
-                          ),
-                          Positioned(
-                            bottom: 2,
-                            right: 2,
-                            child: Container(
-                              width: 9,
-                              height: 9,
-                              decoration: BoxDecoration(
-                                color: o.isOnline ? kGreen : kTextDim,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: kBg2, width: 2),
+                          Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 46,
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  gradient: grad,
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Colors.white.withAlpha(20), width: 2),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(initial, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
                               ),
-                            ),
+                              Positioned(
+                                bottom: 2,
+                                right: 2,
+                                child: Container(
+                                  width: 9,
+                                  height: 9,
+                                  decoration: BoxDecoration(
+                                    color: isOnline ? kGreen : kTextDim,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: kBg2, width: 2),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 5),
+                          Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
                         ],
                       ),
-                      const SizedBox(height: 5),
-                      Text(o.name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             ),
           ),
           // Conversation list
           Expanded(
-            child: ListView(
-              children: [
-                _dateSep('Aujourd\'hui'),
-                ..._conversations.take(2).map((c) => _convTile(c)),
-                _dateSep('Hier'),
-                ..._conversations.skip(2).take(2).map((c) => _convTile(c)),
-                _dateSep('Cette semaine'),
-                ..._conversations.skip(4).map((c) => _convTile(c)),
-              ],
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _db.getFamilyChatStream(),
+              builder: (context, famSnap) {
+                String lastFamMsg = 'Aucun message';
+                String lastFamTime = '';
+                if (famSnap.hasData && famSnap.data!.docs.isNotEmpty) {
+                  final data = famSnap.data!.docs.first.data() as Map<String, dynamic>;
+                  final text = data['text'] ?? 'Média envoyé';
+                  final sender = data['senderName'] ?? 'Inconnu';
+                  lastFamMsg = '$sender : $text';
+                  if (data['timestamp'] != null) {
+                    lastFamTime = DateFormat('HH:mm').format((data['timestamp'] as Timestamp).toDate());
+                  }
+                }
+
+                return StreamBuilder<QuerySnapshot>(
+                  stream: _db.getDirectChatsStream(),
+                  builder: (context, dmSnap) {
+                    if (dmSnap.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: kPurple));
+                    }
+                    final dmDocs = dmSnap.data?.docs ?? [];
+                    final dms = dmDocs.map((doc) => doc.data() as Map<String, dynamic>).toList();
+
+                    return ListView(
+                      children: [
+                        _dateSep('Aujourd\'hui'),
+                        _convTile(_Conv('🏠', const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
+                            'Famille Dubois 👨‍👩‍👧‍👦', lastFamMsg, lastFamTime, 0, true, isGroup: true)),
+                        if (dms.isNotEmpty) _dateSep('Messages directs'),
+                        ...dms.map((data) {
+                          final timeStr = data['lastTime'] != null
+                              ? DateFormat('dd MMM').format((data['lastTime'] as Timestamp).toDate())
+                              : '';
+                          return _convTile(_Conv(
+                            data['initial'] ?? '?',
+                            _getGrad(data['colorIndex'] ?? 0),
+                            data['name'] ?? 'Inconnu',
+                            data['preview'] ?? '',
+                            timeStr,
+                            data['unreadCount'] ?? 0,
+                            data['isOnline'] ?? false,
+                          ));
+                        }).toList(),
+                      ],
+                    );
+                  },
+                );
+              },
             ),
           ),
           AppBottomNavBar(currentIndex: 3, onTap: (i) => handleNavBarTap(context, i, 3)),
@@ -261,12 +383,4 @@ class _Conv {
   final bool isOnline;
   final bool isGroup;
   const _Conv(this.initial, this.gradient, this.name, this.preview, this.time, this.unread, this.isOnline, {this.isGroup = false});
-}
-
-class _OnlinePerson {
-  final String initial;
-  final LinearGradient gradient;
-  final String name;
-  final bool isOnline;
-  const _OnlinePerson(this.initial, this.gradient, this.name, this.isOnline);
 }

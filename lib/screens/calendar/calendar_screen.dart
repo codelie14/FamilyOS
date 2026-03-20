@@ -1,10 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
+import '../../services/firestore_service.dart';
 
-class CalendarScreen extends StatelessWidget {
+class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
+
+  @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  final FirestoreService _db = FirestoreService();
+
+  void _showAddEventDialog(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Nouvel événement', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: TextField(
+          controller: titleCtrl,
+          style: const TextStyle(color: kText),
+          decoration: const InputDecoration(hintText: 'Titre...', hintStyle: TextStyle(color: kTextMuted)),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () {
+              if (titleCtrl.text.isNotEmpty) {
+                _db.addEvent({
+                  'title': titleCtrl.text.trim(),
+                  'time': '10:00 – 11:00', // mocked for now
+                  'tags': ['Famille'],
+                  'colorIndex': DateTime.now().millisecond % 5,
+                });
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Ajouter', style: TextStyle(color: kPurple)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getColor(int index) {
+    const list = [kPink, kCyan, kGreen, kOrange, kPurple];
+    return list[index % list.length];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,12 +66,6 @@ class CalendarScreen extends StatelessWidget {
       ['17', '18', '19', '20T*', '21', '22', '23'],
       ['24S*', '25', '26', '27', '28*', '29', '30'],
       ['31', '', '', '', '', '', ''],
-    ];
-
-    final events = [
-      (kPink, '🎂 Anniversaire de Sophie', '18:00 – 22:00', ['Famille', 'Restaurant'], [kGradMain, kGradPink, kGradCyan], ['A', 'M', 'L']),
-      (kCyan, '📞 Appel Grand-père', '10:00 – 10:30', ['Appel vidéo'], [kGradMain], ['A']),
-      (kGreen, '🏫 Réunion parents Lucas', '14:00 – 15:00', ['École'], [kGradMain, kGradPink], ['A', 'M']),
     ];
 
     return Scaffold(
@@ -43,7 +85,10 @@ class CalendarScreen extends StatelessWidget {
                 Row(children: [
                   AppIconButton(icon: const Icon(Icons.calendar_month_outlined, color: kTextMuted, size: 18)),
                   const SizedBox(width: 8),
-                  AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                  GestureDetector(
+                    onTap: () => _showAddEventDialog(context),
+                    child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                  ),
                 ]),
               ],
             ),
@@ -137,63 +182,73 @@ class CalendarScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const SectionHeader(title: 'Mardi 24 Mars'),
-                ...events.map((e) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: SurfaceCard(
-                    padding: const EdgeInsets.all(14),
-                    radius: 14,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(width: 4, decoration: BoxDecoration(color: e.$1, borderRadius: BorderRadius.circular(10))),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(e.$2, style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
-                              const SizedBox(height: 4),
-                              Row(children: [
-                                const Icon(Icons.access_time_outlined, size: 12, color: kTextDim),
-                                const SizedBox(width: 4),
-                                Text(e.$3, style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
-                              ]),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 6,
-                                children: e.$4.map((tag) => Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: e.$1.withAlpha(38),
-                                    borderRadius: BorderRadius.circular(20),
+                const SectionHeader(title: 'Prochains événements'),
+                StreamBuilder<QuerySnapshot>(
+                  stream: _db.getEventsStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: kPurple));
+                    }
+                    final docs = snapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Text('Aucun événement', style: TextStyle(color: kTextMuted, fontFamily: 'Nunito')),
+                      );
+                    }
+                    return Column(
+                      children: docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        final color = _getColor(data['colorIndex'] ?? 0);
+                        final title = data['title'] ?? 'Sans nom';
+                        final time = data['time'] ?? 'Heure inconnue';
+                        final tagsRaw = data['tags'] as List<dynamic>? ?? [];
+                        final tags = tagsRaw.map((e) => e.toString()).toList();
+                        
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: SurfaceCard(
+                            padding: const EdgeInsets.all(14),
+                            radius: 14,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(width: 4, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10))),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(title, style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+                                      const SizedBox(height: 4),
+                                      Row(children: [
+                                        const Icon(Icons.access_time_outlined, size: 12, color: kTextDim),
+                                        const SizedBox(width: 4),
+                                        Text(time, style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
+                                      ]),
+                                      const SizedBox(height: 8),
+                                      Wrap(
+                                        spacing: 6,
+                                        children: tags.map((tag) => Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: color.withAlpha(38),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(tag, style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+                                        )).toList(),
+                                      ),
+                                    ],
                                   ),
-                                  child: Text(tag, style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: e.$1)),
-                                )).toList(),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // Member avatars
-                        ...(e.$5 as List<LinearGradient>).asMap().entries.map((entry) => Transform.translate(
-                          offset: Offset(-entry.key * 6.0, 0),
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              gradient: entry.value,
-                              borderRadius: BorderRadius.circular(7),
-                              border: Border.all(color: kSurface, width: 1.5),
+                                ),
+                              ],
                             ),
-                            alignment: Alignment.center,
-                            child: Text((e.$6 as List<String>)[entry.key],
-                                style: const TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
                           ),
-                        )),
-                      ],
-                    ),
-                  ),
-                )),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
                 const SizedBox(height: 20),
               ],
             ),

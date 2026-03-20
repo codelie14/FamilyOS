@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/firestore_service.dart';
 
 class VaultScreen extends StatefulWidget {
   const VaultScreen({super.key});
@@ -11,6 +13,8 @@ class VaultScreen extends StatefulWidget {
 }
 
 class _VaultScreenState extends State<VaultScreen> {
+  final FirestoreService _db = FirestoreService();
+
   bool _unlocked = false;
   String _pin = '';
 
@@ -147,10 +151,6 @@ class _VaultScreenState extends State<VaultScreen> {
       ('Mots de passe', '8 entrées', Icons.shield_outlined, kCyan),
       ('Santé', '2 fichiers', Icons.favorite_border, kGreen),
     ];
-    final secrets = [
-      ('Netflix Famille', Icons.desktop_windows_outlined, kOrange),
-      ('Freebox Admin', Icons.language, kCyan),
-    ];
 
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -162,7 +162,7 @@ class _VaultScreenState extends State<VaultScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: 1.6,
+          childAspectRatio: 1.35,
           children: categories.map((c) => Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -188,37 +188,58 @@ class _VaultScreenState extends State<VaultScreen> {
         ),
         const SizedBox(height: 20),
         const SectionHeader(title: 'Mots de passe récents'),
-        ...secrets.map((s) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: SurfaceCard(
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(color: s.$3.withAlpha(38), borderRadius: BorderRadius.circular(10)),
-                  child: Icon(s.$2, color: s.$3, size: 17),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(s.$1, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                      const Text('••••••••••', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted, letterSpacing: 2)),
-                    ],
+        StreamBuilder<QuerySnapshot>(
+          stream: _db.getVaultSecretsStream(),
+          builder: (context, snap) {
+            if (!snap.hasData || snap.data!.docs.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(20),
+                child: Text('Aucun secret récent', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+              );
+            }
+            final docs = snap.data!.docs.toList();
+            return Column(
+              children: docs.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final title = data['title'] ?? 'Secret sans nom';
+                final isPassword = data['type'] == 'password';
+                final icon = isPassword ? Icons.language : Icons.desktop_windows_outlined;
+                final color = isPassword ? kCyan : kOrange;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SurfaceCard(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(10)),
+                          child: Icon(icon, color: color, size: 17),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(title, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+                              const Text('••••••••••', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted, letterSpacing: 2)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
+                          child: const Icon(Icons.copy, color: kTextMuted, size: 13),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
-                  child: const Icon(Icons.copy, color: kTextMuted, size: 13),
-                ),
-              ],
-            ),
-          ),
-        )),
+                );
+              }).toList(),
+            );
+          },
+        ),
         const SizedBox(height: 20),
       ],
     );

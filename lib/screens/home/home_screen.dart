@@ -9,6 +9,8 @@ import '../calendar/calendar_screen.dart';
 import '../tasks/tasks_screen.dart';
 import '../vault/vault_screen.dart';
 import '../notes/notes_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/firestore_service.dart';
 // ─── Model helpers ────────────────────────────────────────────────────────────
 class _Member {
   final String initials;
@@ -25,15 +27,6 @@ class _QuickAction {
   const _QuickAction(this.icon, this.label, this.tint);
 }
 
-class _Activity {
-  final IconData icon;
-  final Color tint;
-  final String title;
-  final String subtitle;
-  final String time;
-  const _Activity(this.icon, this.tint, this.title, this.subtitle, this.time);
-}
-
 // ─── Screen ──────────────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,6 +36,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final FirestoreService _db = FirestoreService();
+
   final List<_Member> _members = const [
     _Member('A', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]), true, 'Admin'),
     _Member('M', LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]), true, 'Marie'),
@@ -59,13 +54,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _QuickAction(Icons.folder_outlined, 'Fichiers', kBlue),
     _QuickAction(Icons.note_outlined, 'Notes', kPurple),
     _QuickAction(Icons.location_on_outlined, 'Localisation', kPink),
-  ];
-
-  final List<_Activity> _activities = const [
-    _Activity(Icons.photo_library_outlined, kPink, 'Marie a ajouté 12 photos', 'Album Vacances 2025', '2 min'),
-    _Activity(Icons.chat_bubble_outline, kPurple, 'Lucas : "On se retrouve à 18h ?"', 'Chat familial', '14 min'),
-    _Activity(Icons.check_box_outlined, kOrange, 'Tâche terminée : Courses', 'Assignée à Sophie', '1h'),
-    _Activity(Icons.folder_outlined, kCyan, 'Contrat_Maison.pdf partagé', 'Coffre sécurisé', '3h'),
   ];
 
   @override
@@ -212,9 +200,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   _heroDivider(),
                   _HeroStat(value: '3', label: 'Événements'),
                   _heroDivider(),
-                  _HeroStat(value: '7', label: 'Tâches'),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _db.getTasksStream(),
+                    builder: (context, snap) {
+                      final count = snap.hasData ? snap.data!.docs.length : 0;
+                      return _HeroStat(value: count.toString(), label: 'Tâches');
+                    },
+                  ),
                   _heroDivider(),
-                  _HeroStat(value: '128', label: 'Fichiers'),
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _db.getGalleryStream(),
+                    builder: (context, snap) {
+                      final count = snap.hasData ? snap.data!.docs.length : 0;
+                      return _HeroStat(value: count.toString(), label: 'Fichiers');
+                    },
+                  ),
                 ],
               ),
             ],
@@ -289,7 +289,7 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisCount: 4,
         mainAxisSpacing: 10,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.82,
+        childAspectRatio: 0.72,
       ),
       itemBuilder: (context, i) {
         final a = _actions[i];
@@ -407,42 +407,56 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildActivityList() {
-    return Column(
-      children: _activities.map((a) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: SurfaceCard(
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: a.tint.withAlpha(38),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(a.icon, color: a.tint, size: 18),
+    return StreamBuilder<QuerySnapshot>(
+      stream: _db.getFamilyChatStream(),
+      builder: (context, snap) {
+        if (!snap.hasData || snap.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(20),
+            child: Text('Aucune activité récente', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+          );
+        }
+        final docs = snap.data!.docs.take(3).toList();
+        return Column(
+          children: docs.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final sender = data['senderName'] ?? 'Membre';
+            final text = data['text'] ?? 'A partagé une photo';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SurfaceCard(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: kPurple.withAlpha(38),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.chat_bubble_outline, color: kPurple, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('$sender a envoyé un message',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+                          Text(text,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(a.title,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                      Text(a.subtitle,
-                          style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
-                    ],
-                  ),
-                ),
-                Text(a.time,
-                    style: const TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w700, color: kTextDim)),
-              ],
-            ),
-          ),
+              ),
+            );
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
