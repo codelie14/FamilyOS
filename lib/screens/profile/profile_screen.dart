@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
+import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -91,15 +92,9 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: kBg2,
       body: Column(
         children: [
-          SafeArea(
+          const SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
-                Text('09:41', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
-                Icon(Icons.battery_full, size: 14, color: kText),
-              ]),
-            ),
+            child: SizedBox.shrink(),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
@@ -197,11 +192,15 @@ class ProfileScreen extends StatelessWidget {
                 ...prefs.map((s) => settingItem(s.$1, s.$2, s.$3, s.$4, s.$5)),
                 const SizedBox(height: 20),
                 GestureDetector(
-                  onTap: () => Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    (route) => false,
-                  ),
+                  onTap: () async {
+                    await AuthService().signOut();
+                    if (!context.mounted) return;
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      (route) => false,
+                    );
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(

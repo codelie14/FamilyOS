@@ -40,18 +40,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
       backgroundColor: kBg2,
       body: Column(
         children: [
-          SafeArea(
+          const SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text('09:41', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
-                  Icon(Icons.battery_full, size: 14, color: kText),
-                ],
-              ),
-            ),
+            child: SizedBox.shrink(),
           ),
           // Title bar
           Padding(

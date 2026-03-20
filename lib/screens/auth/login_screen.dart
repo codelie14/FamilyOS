@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme.dart';
 import '../../widgets/gradient_widgets.dart';
-import '../../widgets/common_widgets.dart';
-import '../home/home_screen.dart';
+import '../../services/auth_service.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -16,11 +16,47 @@ class _LoginScreenState extends State<LoginScreen>
     with TickerProviderStateMixin {
   bool _isLogin = true;
   bool _obscurePassword = true;
+  bool _isLoading = false;
   late AnimationController _floatController;
   late Animation<double> _floatAnimation;
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
+
+  Future<void> _handleAuth(bool isLogin) async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    if (email.isEmpty || password.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez remplir tous les champs')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      if (isLogin) {
+        await _authService.signInWithEmailAndPassword(email, password);
+      } else {
+        await _authService.createUserWithEmailAndPassword(email, password);
+      }
+      // Success is handled by StreamBuilder in main.dart
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur: ${e.message}')),
+      );
+      setState(() => _isLoading = false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Une erreur inattendue est survenue')),
+      );
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   void initState() {
@@ -60,10 +96,7 @@ class _LoginScreenState extends State<LoginScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [
-                    kPurple.withAlpha(64),
-                    Colors.transparent,
-                  ],
+                  colors: [kPurple.withAlpha(64), Colors.transparent],
                 ),
               ),
             ),
@@ -77,10 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [
-                    kCyan.withAlpha(51),
-                    Colors.transparent,
-                  ],
+                  colors: [kCyan.withAlpha(51), Colors.transparent],
                 ),
               ),
             ),
@@ -138,11 +168,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ],
             ),
-            child: Image.asset(
-              'assets/images/logo.png',
-              width: 52,
-              height: 52,
-            ),
+            child: Image.asset('assets/images/logo.png', width: 52, height: 52),
           ),
         ),
         const SizedBox(height: 20),
@@ -226,9 +252,7 @@ class _LoginScreenState extends State<LoginScreen>
           child: GestureDetector(
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => const ForgotPasswordScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
             ),
             child: const Text(
               'Mot de passe oublié ?',
@@ -242,13 +266,12 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
         const SizedBox(height: 24),
-        GradientButton(
-          label: 'Se connecter',
-          onTap: () => Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          ),
-        ),
+        _isLoading
+            ? const Center(child: CircularProgressIndicator(color: kPurple))
+            : GradientButton(
+                label: 'Se connecter',
+                onTap: () => _handleAuth(true),
+              ),
         const SizedBox(height: 20),
         _buildDivider(),
         const SizedBox(height: 20),
@@ -301,6 +324,7 @@ class _LoginScreenState extends State<LoginScreen>
         _FormField(
           label: 'Adresse email',
           icon: Icons.mail_outline,
+          controller: _emailController,
           keyboardType: TextInputType.emailAddress,
           placeholder: 'famille@email.com',
         ),
@@ -312,13 +336,12 @@ class _LoginScreenState extends State<LoginScreen>
           label: 'Créer un mot de passe',
         ),
         const SizedBox(height: 24),
-        GradientButton(
-          label: "Créer mon espace famille",
-          onTap: () => Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          ),
-        ),
+        _isLoading
+            ? const Center(child: CircularProgressIndicator(color: kPurple))
+            : GradientButton(
+                label: "Créer mon espace famille",
+                onTap: () => _handleAuth(false),
+              ),
         const SizedBox(height: 24),
         Center(
           child: RichText(
@@ -357,7 +380,9 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(child: Container(height: 1, color: Colors.white.withAlpha(18))),
+        Expanded(
+          child: Container(height: 1, color: Colors.white.withAlpha(18)),
+        ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
@@ -370,7 +395,9 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
         ),
-        Expanded(child: Container(height: 1, color: Colors.white.withAlpha(18))),
+        Expanded(
+          child: Container(height: 1, color: Colors.white.withAlpha(18)),
+        ),
       ],
     );
   }
@@ -385,11 +412,14 @@ class _LoginScreenState extends State<LoginScreen>
               width: 18,
               height: 18,
               decoration: const BoxDecoration(shape: BoxShape.circle),
-              child: const Text('G',
-                  style: TextStyle(
-                      color: Color(0xFF4285F4),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14)),
+              child: const Text(
+                'G',
+                style: TextStyle(
+                  color: Color(0xFF4285F4),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
             ),
           ),
         ),
@@ -439,9 +469,7 @@ class _TabButton extends StatelessWidget {
                     ),
                   ],
                 )
-              : BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+              : BoxDecoration(borderRadius: BorderRadius.circular(10)),
           child: Text(
             label,
             style: TextStyle(
@@ -505,17 +533,26 @@ class _FormField extends StatelessWidget {
             fillColor: kSurface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1.5),
+              borderSide: BorderSide(
+                color: Colors.white.withAlpha(15),
+                width: 1.5,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1.5),
+              borderSide: BorderSide(
+                color: Colors.white.withAlpha(15),
+                width: 1.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
               borderSide: const BorderSide(color: kPurple, width: 1.5),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
           ),
         ),
       ],
@@ -564,11 +601,17 @@ class _PasswordField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: '••••••••',
             hintStyle: const TextStyle(color: kTextDim),
-            prefixIcon: const Icon(Icons.lock_outline, color: kTextDim, size: 17),
+            prefixIcon: const Icon(
+              Icons.lock_outline,
+              color: kTextDim,
+              size: 17,
+            ),
             suffixIcon: GestureDetector(
               onTap: onToggle,
               child: Icon(
-                obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                obscure
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
                 color: kTextDim,
                 size: 17,
               ),
@@ -577,17 +620,26 @@ class _PasswordField extends StatelessWidget {
             fillColor: kSurface,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1.5),
+              borderSide: BorderSide(
+                color: Colors.white.withAlpha(15),
+                width: 1.5,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1.5),
+              borderSide: BorderSide(
+                color: Colors.white.withAlpha(15),
+                width: 1.5,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
               borderSide: const BorderSide(color: kPurple, width: 1.5),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 13,
+            ),
           ),
         ),
       ],

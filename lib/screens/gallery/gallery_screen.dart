@@ -1,10 +1,56 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
+import '../../services/cloudinary_service.dart';
+import '../../services/firestore_service.dart';
 
-class GalleryScreen extends StatelessWidget {
+class GalleryScreen extends StatefulWidget {
   const GalleryScreen({super.key});
+
+  @override
+  State<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends State<GalleryScreen> {
+  final _cloudinaryService = CloudinaryService();
+  final _firestoreService = FirestoreService();
+  bool _isUploading = false;
+
+  Future<void> _pickAndUploadImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final file = File(pickedFile.path);
+      final url = await _cloudinaryService.uploadImage(file);
+      
+      if (url != null) {
+        await _firestoreService.addPhoto(url);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Photo ajoutée avec succès !')),
+          );
+        }
+      } else {
+        throw Exception("Failed to upload image");
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de l\'envoi : $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -13,25 +59,14 @@ class GalleryScreen extends StatelessWidget {
       ('🎄', 'Noël 2024', '32 photos', [kPink, kPurple]),
       ('🎂', 'Anniversaires', '24 photos', [kGreen, kCyan]),
     ];
-    final photoColors = [
-      [kPurple, kCyan], [kPink, kPurple], [kGreen, kCyan],
-      [kOrange, kPink], [kCyan, kBlue], [kPurple, kPink], [kBlue, kGreen],
-    ];
-    final photoEmojis = ['🌅', '🏄', '🌊', '🍦', '🌴', '🎡', '🐠'];
 
     return Scaffold(
       backgroundColor: kBg2,
       body: Column(
         children: [
-          SafeArea(
+          const SafeArea(
             bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(30, 0, 30, 0),
-              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: const [
-                Text('09:41', style: TextStyle(fontFamily: 'Sora', fontSize: 12, fontWeight: FontWeight.w700, color: kText)),
-                Icon(Icons.battery_full, size: 14, color: kText),
-              ]),
-            ),
+            child: SizedBox.shrink(),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
@@ -42,7 +77,12 @@ class GalleryScreen extends StatelessWidget {
                 Row(children: [
                   AppIconButton(icon: const Icon(Icons.search, color: kTextMuted, size: 18)),
                   const SizedBox(width: 8),
-                  AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                  _isUploading 
+                    ? const Padding(padding: EdgeInsets.all(8), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kCyan))) 
+                    : GestureDetector(
+                        onTap: _pickAndUploadImage,
+                        child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                      ),
                 ]),
               ],
             ),
@@ -103,26 +143,46 @@ class GalleryScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
                 SectionHeader(title: 'Récentes', action: 'Tout voir'),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: photoColors.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 3,
-                    crossAxisSpacing: 3,
-                  ),
-                  itemBuilder: (ctx, i) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: (photoColors[i] as List<Color>).map((c) => c.withAlpha(90)).toList(),
+                StreamBuilder<QuerySnapshot>(
+                  stream: _firestoreService.getGalleryStream(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(height: 100, child: Center(child: CircularProgressIndicator(color: kPurple)));
+                    }
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const SizedBox(
+                        height: 150,
+                        child: Center(
+                          child: Text("Aucune photo récente", style: TextStyle(color: kTextMuted, fontFamily: 'Nunito')),
                         ),
+                      );
+                    }
+                    
+                    final docs = snapshot.data!.docs;
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: docs.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 3,
+                        crossAxisSpacing: 3,
                       ),
-                      alignment: Alignment.center,
-                      child: Text(photoEmojis[i], style: TextStyle(fontSize: i == 0 ? 48 : 28)),
+                      itemBuilder: (ctx, i) {
+                        final data = docs[i].data() as Map<String, dynamic>;
+                        final url = data['url'] as String?;
+                        
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: kSurface,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          child: url != null 
+                             ? Image.network(url, fit: BoxFit.cover)
+                             : const Icon(Icons.broken_image, color: kTextMuted),
+                        );
+                      },
                     );
                   },
                 ),
