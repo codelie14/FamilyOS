@@ -75,12 +75,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showInviteDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Inviter un membre', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: const Text('Partagez ce code pour inviter un proche :\n\nFAM-2026-X8Y9', textAlign: TextAlign.center, style: TextStyle(color: kCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copié dans le presse-papiers')));
+            },
+            child: const Text('Copier', style: TextStyle(color: kPurple)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRolesDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Rôles et permissions', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: const Text('Gérez qui peut modifier les fichiers, ajouter des événements, ou inviter de nouveaux membres. (Fonctionnalité à venir)', style: TextStyle(fontFamily: 'Nunito', color: kText)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Ok', style: TextStyle(color: kPurple))),
+        ],
+      ),
+    );
+  }
+
+  void _showFamilySettingsDialog() {
+    final nameCtrl = TextEditingController(text: 'Notre Famille');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Paramètres familiaux', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        content: TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom de la famille', hintStyle: TextStyle(color: kTextMuted))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () async {
+              if (nameCtrl.text.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('family_info').doc('details').set({'familyName': nameCtrl.text.trim()}, SetOptions(merge: true));
+                if (mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nom de famille mis à jour')));
+                }
+              }
+            },
+            child: const Text('Enregistrer', style: TextStyle(color: kPurple)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     final userName = user?.displayName ?? 'Administrateur';
     final userEmail = user?.email ?? 'Nom, email, photo';
-    final userInitial = userName[0].toUpperCase();
+    final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : 'A';
 
     Widget settingItem(IconData icon, Color color, String title, String sub, String type, {VoidCallback? onTap}) {
       return GestureDetector(
@@ -172,9 +234,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 
                 final settings = [
                   [Icons.person_outline, kPurple, 'Informations personnelles', userEmail, 'arrow', () => _showEditProfileDialog(user!)],
-                  [Icons.people_outline, kGreen, 'Gérer les membres', '$mCount membres actifs', 'arrow', () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gérez les membres depuis l\'écran Messages')));
-                  }],
+                  [Icons.group_add_outlined, kBlue, 'Ajouter un membre', 'Inviter dans la famille', 'arrow', () => _showInviteDialog()],
+                  [Icons.admin_panel_settings_outlined, kOrange, 'Rôles et permissions', 'Gérer les accès', 'arrow', () => _showRolesDialog()],
+                  [Icons.home_outlined, kPink, 'Paramètres familiaux', 'Nom et préférences', 'arrow', () => _showFamilySettingsDialog()],
                 ];
                 final security = [
                   [Icons.lock_outline, kOrange, 'Mot de passe', 'Dernière modification récente', 'arrow', () => _showPasswordResetDialog(user!)],

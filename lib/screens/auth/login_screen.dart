@@ -4,6 +4,7 @@ import '../../core/theme.dart';
 import '../../widgets/gradient_widgets.dart';
 import '../../services/auth_service.dart';
 import 'forgot_password_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,6 +23,11 @@ class _LoginScreenState extends State<LoginScreen>
 
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _fnameController = TextEditingController();
+  final _familyController = TextEditingController();
+  final _dobController = TextEditingController();
+  final _sexController = TextEditingController();
+  final _relationController = TextEditingController();
   final _authService = AuthService();
 
   Future<void> _handleAuth(bool isLogin) async {
@@ -40,14 +46,38 @@ class _LoginScreenState extends State<LoginScreen>
       if (isLogin) {
         await _authService.signInWithEmailAndPassword(email, password);
       } else {
-        await _authService.createUserWithEmailAndPassword(email, password);
+        final r = await _authService.createUserWithEmailAndPassword(email, password);
+        final user = r?.user;
+        if (user != null) {
+          final fullName = _fnameController.text.trim();
+          if (fullName.isNotEmpty) {
+             await user.updateDisplayName(fullName);
+          }
+          await FirebaseFirestore.instance.collection('members').doc(user.uid).set({
+            'name': fullName.isEmpty ? 'Utilisateur' : fullName,
+            'email': email,
+            'dob': _dobController.text.trim(),
+            'sex': _sexController.text.trim(),
+            'relationship': _relationController.text.trim(),
+            'initial': fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
+            'colorIndex': DateTime.now().microsecond % 5,
+            'isOnline': true,
+          }, SetOptions(merge: true));
+
+          final familyName = _familyController.text.trim();
+          if (familyName.isNotEmpty) {
+            await FirebaseFirestore.instance.collection('family_info').doc('details').set({
+               'familyName': familyName,
+            }, SetOptions(merge: true));
+          }
+        }
       }
       // Success is handled by StreamBuilder in main.dart
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: ${e.message}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Erreur: ${e.message}')));
       setState(() => _isLoading = false);
     } catch (e) {
       if (!mounted) return;
@@ -77,6 +107,11 @@ class _LoginScreenState extends State<LoginScreen>
     _floatController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _fnameController.dispose();
+    _familyController.dispose();
+    _dobController.dispose();
+    _sexController.dispose();
+    _relationController.dispose();
     super.dispose();
   }
 
@@ -316,9 +351,38 @@ class _LoginScreenState extends State<LoginScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _FormField(
-          label: 'Nom de famille',
+          label: 'Nom de famille (si Admin)',
           icon: Icons.people_outline,
-          placeholder: 'Famille Dubois',
+          controller: _familyController,
+          placeholder: 'Ex: Famille Dubois',
+        ),
+        const SizedBox(height: 16),
+        _FormField(
+          label: 'Nom complet',
+          icon: Icons.person_outline,
+          controller: _fnameController,
+          placeholder: 'Ex: Jean Dubois',
+        ),
+        const SizedBox(height: 16),
+        _FormField(
+          label: 'Sexe',
+          icon: Icons.transgender_outlined,
+          controller: _sexController,
+          placeholder: 'Homme / Femme',
+        ),
+        const SizedBox(height: 16),
+        _FormField(
+          label: 'Date de naissance',
+          icon: Icons.calendar_today_outlined,
+          controller: _dobController,
+          placeholder: 'JJ/MM/AAAA',
+        ),
+        const SizedBox(height: 16),
+        _FormField(
+          label: 'Parenté',
+          icon: Icons.family_restroom_outlined,
+          controller: _relationController,
+          placeholder: 'Ex: Père, Mère, Enfant...',
         ),
         const SizedBox(height: 16),
         _FormField(

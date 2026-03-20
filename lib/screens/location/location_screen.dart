@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../core/theme.dart';
 import '../../widgets/common_widgets.dart';
 import '../../services/firestore_service.dart';
@@ -12,24 +14,10 @@ class LocationScreen extends StatefulWidget {
   State<LocationScreen> createState() => _LocationScreenState();
 }
 
-class _LocationScreenState extends State<LocationScreen> with SingleTickerProviderStateMixin {
+class _LocationScreenState extends State<LocationScreen> {
   final FirestoreService _db = FirestoreService();
-  late AnimationController _radarController;
-
-  @override
-  void initState() {
-    super.initState();
-    _radarController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 4),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _radarController.dispose();
-    super.dispose();
-  }
+  final MapController _mapController = MapController();
+  final LatLng _initialCenter = const LatLng(48.8566, 2.3522); // Paris by default
 
   LinearGradient _getGrad(int index) {
     const list = [
@@ -86,79 +74,71 @@ class _LocationScreenState extends State<LocationScreen> with SingleTickerProvid
           ),
           
           // Radar View
+          // Map View
           Expanded(
             flex: 3,
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _db.getMembersStream(),
-              builder: (context, snapshot) {
-                final docs = snapshot.data?.docs ?? [];
-                
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Concentric circles
-                    _buildRadarCircle(280, 0.05),
-                    _buildRadarCircle(200, 0.1),
-                    _buildRadarCircle(120, 0.15),
-                    
-                    // Radar sweep animation
-                    AnimatedBuilder(
-                      animation: _radarController,
-                      builder: (context, child) {
-                        return Transform.rotate(
-                          angle: _radarController.value * 2 * pi,
-                          child: Container(
-                            width: 280,
-                            height: 280,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: SweepGradient(
-                                colors: [
-                                  kCyan.withAlpha(0),
-                                  kCyan.withAlpha(20),
-                                  kCyan.withAlpha(80),
-                                ],
-                                stops: const [0.0, 0.8, 1.0],
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(30),
+                bottomRight: Radius.circular(30),
+              ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _db.getMembersStream(),
+                builder: (context, snapshot) {
+                  final docs = snapshot.data?.docs ?? [];
+                  
+                  return FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _initialCenter,
+                      initialZoom: 13.0,
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.familyos.app',
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _initialCenter,
+                            width: 60,
+                            height: 60,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: kGradMain,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withAlpha(40), width: 3),
+                                boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 15, spreadRadius: 2)],
                               ),
+                              child: const Icon(Icons.home_rounded, color: Colors.white, size: 22),
                             ),
                           ),
-                        );
-                      },
-                    ),
-
-                    // Central pin (Home/Me)
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        gradient: kGradMain,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withAlpha(40), width: 3),
-                        boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 15, spreadRadius: 2)],
+                          if (snapshot.hasData)
+                            ...List.generate(docs.length, (i) {
+                              final data = docs[i].data() as Map<String, dynamic>;
+                              final initial = data['initial'] ?? '?';
+                              final grad = _getGrad(data['colorIndex'] ?? i);
+                              
+                              // Pseudo-random position around Paris for mockup
+                              final angle = (i * 2.0 * pi / docs.length);
+                              final distance = 0.02 + (i * 0.01);
+                              final lat = _initialCenter.latitude + cos(angle) * distance;
+                              final lng = _initialCenter.longitude + sin(angle) * distance;
+                              
+                              return Marker(
+                                point: LatLng(lat, lng),
+                                width: 40,
+                                height: 40,
+                                child: _buildMapPin(initial, grad),
+                              );
+                            }),
+                        ],
                       ),
-                      child: const Icon(Icons.home_rounded, color: Colors.white, size: 22),
-                    ),
-
-                    // Family members positioned randomly on radar
-                    if (snapshot.hasData)
-                      ...List.generate(docs.length, (i) {
-                        final data = docs[i].data() as Map<String, dynamic>;
-                        final initial = data['initial'] ?? '?';
-                        final grad = _getGrad(data['colorIndex'] ?? i);
-                        
-                        // Pseudo-random position based on index purely for UI mockup
-                        final angle = (i * 1.5) + 0.5;
-                        final radius = 60.0 + (i * 30.0 % 80.0);
-                        
-                        return Positioned(
-                          left: (MediaQuery.of(context).size.width / 2) + cos(angle) * radius - 18,
-                          top: (280 / 2) + sin(angle) * radius - 18 + 40, // 40 is approx offset
-                          child: _buildMapPin(initial, grad),
-                        );
-                      }),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
 
@@ -281,17 +261,7 @@ class _LocationScreenState extends State<LocationScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildRadarCircle(double size, double opacity) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: kCyan.withOpacity(opacity), width: 1.5),
-        color: kCyan.withOpacity(opacity * 0.3),
-      ),
-    );
-  }
+
 
   Widget _buildMapPin(String initial, LinearGradient grad) {
     return Column(

@@ -19,11 +19,31 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
   LinearGradient _getGrad(int index) {
     const list = [
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kOrange, kPink]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kPink]),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kPink, kPurple],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kCyan, kBlue],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kGreen, kCyan],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kOrange, kPink],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kPurple, kPink],
+      ),
     ];
     return list[index % list.length];
   }
@@ -35,17 +55,37 @@ class _ChatListScreenState extends State<ChatListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Nouveau message direct', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        title: const Text(
+          'Nouveau message direct',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom du contact...', hintStyle: TextStyle(color: kTextMuted))),
+            TextField(
+              controller: nameCtrl,
+              style: const TextStyle(color: kText),
+              decoration: const InputDecoration(
+                hintText: 'Nom du contact...',
+                hintStyle: TextStyle(color: kTextMuted),
+              ),
+            ),
             const SizedBox(height: 10),
-            TextField(controller: msgCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Message...', hintStyle: TextStyle(color: kTextMuted))),
+            TextField(
+              controller: msgCtrl,
+              style: const TextStyle(color: kText),
+              decoration: const InputDecoration(
+                hintText: 'Message...',
+                hintStyle: TextStyle(color: kTextMuted),
+              ),
+            ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () {
               if (nameCtrl.text.isNotEmpty) {
@@ -73,10 +113,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Ajouter un membre', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom...', hintStyle: TextStyle(color: kTextMuted))),
+        title: const Text(
+          'Ajouter un membre',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          style: const TextStyle(color: kText),
+          decoration: const InputDecoration(
+            hintText: 'Nom...',
+            hintStyle: TextStyle(color: kTextMuted),
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () {
               if (nameCtrl.text.isNotEmpty) {
@@ -102,25 +155,43 @@ class _ChatListScreenState extends State<ChatListScreen> {
       backgroundColor: kBg2,
       body: Column(
         children: [
-          const SafeArea(
-            bottom: false,
-            child: SizedBox.shrink(),
-          ),
+          const SafeArea(bottom: false, child: SizedBox.shrink()),
           // Title bar
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Messages', style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
+                const Text(
+                  'Messages',
+                  style: TextStyle(
+                    fontFamily: 'Sora',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: kText,
+                  ),
+                ),
                 Row(
                   children: [
-                    AppIconButton(icon: const Icon(Icons.search, color: kTextMuted, size: 18)),
+                    AppIconButton(
+                      icon: const Icon(
+                        Icons.search,
+                        color: kTextMuted,
+                        size: 18,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: _showAddDMDialog,
                       onLongPress: _showAddMemberDialog,
-                      child: AppIconButton(icon: const Icon(Icons.edit_outlined, color: kTextMuted, size: 18), showDot: true),
+                      child: AppIconButton(
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: kTextMuted,
+                          size: 18,
+                        ),
+                        showDot: true,
+                      ),
                     ),
                   ],
                 ),
@@ -141,8 +212,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 children: const [
                   Icon(Icons.search, color: kTextMuted, size: 16),
                   SizedBox(width: 10),
-                  Text('Rechercher un message…',
-                      style: TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w600, color: kTextDim)),
+                  Text(
+                    'Rechercher un message…',
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: kTextDim,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -154,7 +232,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
               stream: _db.getMembersStream(),
               builder: (context, snapshot) {
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('Aucun membre en ligne', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted, fontSize: 12)));
+                  return const Center(
+                    child: Text(
+                      'Aucun membre en ligne',
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        color: kTextMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  );
                 }
                 final docs = snapshot.data!.docs;
                 return ListView.builder(
@@ -181,10 +268,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                 decoration: BoxDecoration(
                                   gradient: grad,
                                   borderRadius: BorderRadius.circular(14),
-                                  border: Border.all(color: Colors.white.withAlpha(20), width: 2),
+                                  border: Border.all(
+                                    color: Colors.white.withAlpha(20),
+                                    width: 2,
+                                  ),
                                 ),
                                 alignment: Alignment.center,
-                                child: Text(initial, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
+                                child: Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    fontFamily: 'Nunito',
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                  ),
+                                ),
                               ),
                               Positioned(
                                 bottom: 2,
@@ -202,7 +300,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             ],
                           ),
                           const SizedBox(height: 5),
-                          Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontFamily: 'Nunito',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: kTextMuted,
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -219,12 +325,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                 String lastFamMsg = 'Aucun message';
                 String lastFamTime = '';
                 if (famSnap.hasData && famSnap.data!.docs.isNotEmpty) {
-                  final data = famSnap.data!.docs.first.data() as Map<String, dynamic>;
+                  final data =
+                      famSnap.data!.docs.first.data() as Map<String, dynamic>;
                   final text = data['text'] ?? 'Média envoyé';
                   final sender = data['senderName'] ?? 'Inconnu';
                   lastFamMsg = '$sender : $text';
                   if (data['timestamp'] != null) {
-                    lastFamTime = DateFormat('HH:mm').format((data['timestamp'] as Timestamp).toDate());
+                    lastFamTime = DateFormat(
+                      'HH:mm',
+                    ).format((data['timestamp'] as Timestamp).toDate());
                   }
                 }
 
@@ -232,7 +341,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   stream: _db.getDirectChatsStream(),
                   builder: (context, dmSnap) {
                     if (dmSnap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: kPurple));
+                      return const Center(
+                        child: CircularProgressIndicator(color: kPurple),
+                      );
                     }
                     final dmDocs = dmSnap.data?.docs ?? [];
                     final dms = dmDocs.map((doc) {
@@ -241,35 +352,66 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       return d;
                     }).toList();
 
-                    return ListView(
-                      children: [
-                        _dateSep('Aujourd\'hui'),
-                        _convTile(_Conv(null, '🏠', const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
-                            'Famille Dubois 👨‍👩‍👧‍👦', lastFamMsg, lastFamTime, 0, true, isGroup: true)),
-                        if (dms.isNotEmpty) _dateSep('Messages directs'),
-                        ...dms.map((data) {
-                          final timeStr = data['lastTime'] != null
-                              ? DateFormat('dd MMM').format((data['lastTime'] as Timestamp).toDate())
-                              : '';
-                          return _convTile(_Conv(
-                            data['id'],
-                            data['initial'] ?? '?',
-                            _getGrad(data['colorIndex'] ?? 0),
-                            data['name'] ?? 'Inconnu',
-                            data['preview'] ?? '',
-                            timeStr,
-                            data['unreadCount'] ?? 0,
-                            data['isOnline'] ?? false,
-                          ));
-                        }).toList(),
-                      ],
+                    return StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance.collection('family_info').doc('details').snapshots(),
+                      builder: (context, infoSnap) {
+                        final familyName = infoSnap.hasData && infoSnap.data!.exists 
+                            ? (infoSnap.data!.data() as Map<String, dynamic>)['familyName'] ?? 'Notre Famille'
+                            : 'Notre Famille';
+                            
+                        return ListView(
+                          children: [
+                            _dateSep('Aujourd\'hui'),
+                            _convTile(
+                              _Conv(
+                                null,
+                                '🏠',
+                                const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [kPurple, kBlue],
+                                ),
+                                '$familyName 👨‍👩‍👧‍👦',
+                                lastFamMsg,
+                                lastFamTime,
+                                0,
+                                true,
+                                isGroup: true,
+                              ),
+                            ),
+                            if (dms.isNotEmpty) _dateSep('Messages directs'),
+                            ...dms.map((data) {
+                              final timeStr = data['lastTime'] != null
+                                  ? DateFormat('dd MMM').format(
+                                      (data['lastTime'] as Timestamp).toDate(),
+                                    )
+                                  : '';
+                              return _convTile(
+                                _Conv(
+                                  data['id'],
+                                  data['initial'] ?? '?',
+                                  _getGrad(data['colorIndex'] ?? 0),
+                                  data['name'] ?? 'Inconnu',
+                                  data['preview'] ?? '',
+                                  timeStr,
+                                  data['unreadCount'] ?? 0,
+                                  data['isOnline'] ?? false,
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                        );
+                      }
                     );
                   },
                 );
               },
             ),
           ),
-          AppBottomNavBar(currentIndex: 3, onTap: (i) => handleNavBarTap(context, i, 3)),
+          AppBottomNavBar(
+            currentIndex: 3,
+            onTap: (i) => handleNavBarTap(context, i, 3),
+          ),
         ],
       ),
     );
@@ -278,8 +420,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
   Widget _dateSep(String label) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Text(label,
-          style: const TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w800, color: kTextDim, letterSpacing: 1)),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontFamily: 'Nunito',
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: kTextDim,
+          letterSpacing: 1,
+        ),
+      ),
     );
   }
 
@@ -312,8 +462,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   alignment: Alignment.center,
-                  child: Text(c.initial,
-                      style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 18, color: Colors.white)),
+                  child: Text(
+                    c.initial,
+                    style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
                 Positioned(
                   bottom: 2,
@@ -338,10 +495,24 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(c.name,
-                          style: const TextStyle(fontFamily: 'Nunito', fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
-                      Text(c.time,
-                          style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextDim)),
+                      Text(
+                        c.name,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: kText,
+                        ),
+                      ),
+                      Text(
+                        c.time,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: kTextDim,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 3),
@@ -351,7 +522,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     style: TextStyle(
                       fontFamily: 'Nunito',
                       fontSize: 13,
-                      fontWeight: c.unread > 0 ? FontWeight.w700 : FontWeight.w600,
+                      fontWeight: c.unread > 0
+                          ? FontWeight.w700
+                          : FontWeight.w600,
                       color: c.unread > 0 ? kText : kTextMuted,
                     ),
                   ),
@@ -368,8 +541,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
-                child: Text('${c.unread}',
-                    style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+                child: Text(
+                  '${c.unread}',
+                  style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
               ),
             ],
           ],
@@ -389,5 +569,15 @@ class _Conv {
   final int unread;
   final bool isOnline;
   final bool isGroup;
-  const _Conv(this.id, this.initial, this.gradient, this.name, this.preview, this.time, this.unread, this.isOnline, {this.isGroup = false});
+  const _Conv(
+    this.id,
+    this.initial,
+    this.gradient,
+    this.name,
+    this.preview,
+    this.time,
+    this.unread,
+    this.isOnline, {
+    this.isGroup = false,
+  });
 }

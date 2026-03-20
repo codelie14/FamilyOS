@@ -22,6 +22,7 @@ class _FilesScreenState extends State<FilesScreen> {
 
   final CloudinaryService _cloudinaryService = CloudinaryService();
   bool _isUploading = false;
+  String _selectedFolder = 'Tous';
 
   Future<void> _pickAndUploadFile(BuildContext context) async {
     final result = await FilePicker.platform.pickFiles(
@@ -151,27 +152,39 @@ class _FilesScreenState extends State<FilesScreen> {
                   crossAxisCount: 2,
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
-                  childAspectRatio: 1.6,
+                  childAspectRatio: 1.3,
                   children: [
-                    _folderCard('Images', 'Fichiers médias', Icons.photo_library_outlined, kPurple),
-                    _folderCard('Vidéos', 'Souvenirs en vidéo', Icons.videocam_outlined, kPink),
-                    _folderCard('Documents', 'Contrats & docs', Icons.insert_drive_file_outlined, kCyan),
-                    _folderCard('Coffre', 'Accès sécurisé', Icons.lock_outline, kOrange),
+                    _folderCard(context, 'Images', 'image', 'Fichiers médias', Icons.photo_library_outlined, kPurple),
+                    _folderCard(context, 'Vidéos', 'video', 'Souvenirs en vidéo', Icons.videocam_outlined, kPink),
+                    _folderCard(context, 'Documents', 'doc', 'Contrats & docs', Icons.insert_drive_file_outlined, kCyan),
+                    _folderCard(context, 'Coffre', 'vault', 'Accès sécurisé', Icons.lock_outline, kOrange),
                   ],
                 ),
                 const SizedBox(height: 20),
-                SectionHeader(title: 'Récents', action: 'Tout voir'),
+                SectionHeader(
+                  title: _selectedFolder == 'Tous' ? 'Récents' : 'Fichiers - ${_selectedFolder.toUpperCase()}', 
+                  action: _selectedFolder == 'Tous' ? 'Tout voir' : 'Annuler',
+                  onActionTap: () => setState(() => _selectedFolder = 'Tous'),
+                ),
                 StreamBuilder<QuerySnapshot>(
                   stream: _db.getFilesStream(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator(color: kPurple));
                     }
-                    final docs = snapshot.data?.docs ?? [];
+                    var docs = snapshot.data?.docs ?? [];
+
+                    if (_selectedFolder != 'Tous') {
+                      docs = docs.where((doc) {
+                        final type = (doc.data() as Map<String, dynamic>)['type'] ?? 'doc';
+                        return type == _selectedFolder;
+                      }).toList();
+                    }
+
                     if (docs.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Text('Aucun fichier', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+                      return Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(_selectedFolder == 'Tous' ? 'Aucun fichier' : 'Aucun fichier dans ce dossier', style: const TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
                       );
                     }
                     return Column(
@@ -190,38 +203,41 @@ class _FilesScreenState extends State<FilesScreen> {
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Container(
-                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                            decoration: BoxDecoration(
-                              color: kSurface,
-                              borderRadius: BorderRadius.circular(13),
-                              border: Border.all(color: Colors.white.withAlpha(12), width: 1),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(11)),
-                                  child: Icon(icon, color: color, size: 18),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                                      Text('$size · $timeStr · $uploader', style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
-                                    ],
+                          child: GestureDetector(
+                            onTap: () => _showFileOptions(context, doc.id, title, size, timeStr, uploader, icon, color),
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                              decoration: BoxDecoration(
+                                color: kSurface,
+                                borderRadius: BorderRadius.circular(13),
+                                border: Border.all(color: Colors.white.withAlpha(12), width: 1),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(11)),
+                                    child: Icon(icon, color: color, size: 18),
                                   ),
-                                ),
-                                Container(
-                                  width: 30,
-                                  height: 30,
-                                  decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
-                                  child: const Icon(Icons.more_horiz, color: kTextMuted, size: 14),
-                                ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+                                        Text('$size · $timeStr · $uploader', style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
+                                    child: const Icon(Icons.more_horiz, color: kTextMuted, size: 14),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -239,6 +255,67 @@ class _FilesScreenState extends State<FilesScreen> {
     );
   }
 
+  void _showFileOptions(BuildContext context, String fileId, String title, String size, String timeStr, String uploader, IconData icon, Color color) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white.withAlpha(50), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  width: 50, height: 50,
+                  decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(14)),
+                  child: Icon(icon, color: color, size: 24),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Sora', fontSize: 16, fontWeight: FontWeight.w700, color: kText)),
+                      Text('$size • $timeStr • Par $uploader', style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, color: kTextMuted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            ListTile(
+              leading: const Icon(Icons.remove_red_eye_outlined, color: kText),
+              title: const Text('Ouvrir / Visualiser', style: TextStyle(fontFamily: 'Nunito', color: kText, fontWeight: FontWeight.w600)),
+              onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ouverture de $title...'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined, color: kText),
+              title: const Text('Partager', style: TextStyle(fontFamily: 'Nunito', color: kText, fontWeight: FontWeight.w600)),
+              onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lien de partage généré dans le presse-papiers'))); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: kRed),
+              title: const Text('Supprimer', style: TextStyle(fontFamily: 'Nunito', color: kRed, fontWeight: FontWeight.w700)),
+              onTap: () async {
+                Navigator.pop(ctx);
+                await _db.deleteFile(fileId);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fichier supprimé')));
+              },
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _storageType(String label, Color color) {
     return Row(
       children: [
@@ -249,27 +326,40 @@ class _FilesScreenState extends State<FilesScreen> {
     );
   }
 
-  Widget _folderCard(String name, String count, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withAlpha(12), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(height: 10),
-          Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-          Text(count, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
-        ],
+  Widget _folderCard(BuildContext context, String name, String folderType, String count, IconData icon, Color color) {
+    final isSelected = _selectedFolder == folderType;
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (_selectedFolder == folderType) {
+            _selectedFolder = 'Tous';
+          } else {
+            _selectedFolder = folderType;
+          }
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withAlpha(20) : kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: isSelected ? color.withAlpha(100) : Colors.white.withAlpha(12), width: isSelected ? 2 : 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(height: 10),
+            Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+            Text(count, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+          ],
+        ),
       ),
     );
   }

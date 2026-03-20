@@ -12,6 +12,7 @@ import '../notes/notes_screen.dart';
 import '../location/location_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
+
 // ─── Model helpers ────────────────────────────────────────────────────────────
 class _QuickAction {
   final IconData icon;
@@ -33,11 +34,31 @@ class _HomeScreenState extends State<HomeScreen> {
 
   LinearGradient _getGrad(int index) {
     const list = [
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kOrange, kPink]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kPink, kPurple],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kCyan, kBlue],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kGreen, kCyan],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kOrange, kPink],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kPurple, kBlue],
+      ),
     ];
     return list[index % list.length];
   }
@@ -82,17 +103,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          AppBottomNavBar(currentIndex: 0, onTap: (i) => handleNavBarTap(context, i, 0)),
+          AppBottomNavBar(
+            currentIndex: 0,
+            onTap: (i) => handleNavBarTap(context, i, 0),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildStatusBar() {
-    return const SafeArea(
-      bottom: false,
-      child: SizedBox.shrink(),
-    );
+    return const SafeArea(bottom: false, child: SizedBox.shrink());
   }
 
   Widget _buildTopBar() {
@@ -108,7 +129,11 @@ class _HomeScreenState extends State<HomeScreen> {
               gradient: kGradMain,
               borderRadius: BorderRadius.circular(11),
               boxShadow: [
-                BoxShadow(color: kPurple.withAlpha(100), blurRadius: 14, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: kPurple.withAlpha(100),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: Image.asset('assets/images/logo.png', width: 22, height: 22),
@@ -116,16 +141,28 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(width: 10),
           RichText(
             text: const TextSpan(
-              style: TextStyle(fontFamily: 'Sora', fontSize: 19, fontWeight: FontWeight.w700, color: kText),
+              style: TextStyle(
+                fontFamily: 'Sora',
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                color: kText,
+              ),
               children: [
                 TextSpan(text: 'Family'),
-                TextSpan(text: 'OS', style: TextStyle(color: kCyan)),
+                TextSpan(
+                  text: 'OS',
+                  style: TextStyle(color: kCyan),
+                ),
               ],
             ),
           ),
           const Spacer(),
           AppIconButton(
-            icon: const Icon(Icons.notifications_outlined, color: kTextMuted, size: 18),
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: kTextMuted,
+              size: 18,
+            ),
             showDot: true,
           ),
           const SizedBox(width: 8),
@@ -138,7 +175,15 @@ class _HomeScreenState extends State<HomeScreen> {
               border: Border.all(color: Colors.white.withAlpha(38), width: 2),
             ),
             alignment: Alignment.center,
-            child: const Text('A', style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 14, color: Colors.white)),
+            child: const Text(
+              'A',
+              style: TextStyle(
+                fontFamily: 'Nunito',
+                fontWeight: FontWeight.w800,
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
       ),
@@ -152,7 +197,11 @@ class _HomeScreenState extends State<HomeScreen> {
         gradient: kGradMain,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
-          BoxShadow(color: kPurple.withAlpha(64), blurRadius: 24, offset: const Offset(0, 8)),
+          BoxShadow(
+            color: kPurple.withAlpha(64),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       child: Stack(
@@ -185,11 +234,33 @@ class _HomeScreenState extends State<HomeScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Bonjour 👋',
-                  style: TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white70)),
+              const Text(
+                'Bonjour 👋',
+                style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white70,
+                ),
+              ),
               const SizedBox(height: 4),
-              const Text('Famille Dubois',
-                  style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white)),
+              StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('family_info').doc('details').snapshots(),
+                builder: (context, snap) {
+                  final familyName = snap.hasData && snap.data!.exists 
+                      ? (snap.data!.data() as Map<String, dynamic>)['familyName'] ?? 'Notre Famille'
+                      : 'Notre Famille';
+                  return Text(
+                    familyName,
+                    style: const TextStyle(
+                      fontFamily: 'Sora',
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -197,7 +268,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     stream: _db.getMembersStream(),
                     builder: (context, snap) {
                       final count = snap.hasData ? snap.data!.docs.length : 0;
-                      return _HeroStat(value: count.toString(), label: 'Membres');
+                      return _HeroStat(
+                        value: count.toString(),
+                        label: 'Membres',
+                      );
                     },
                   ),
                   _heroDivider(),
@@ -205,7 +279,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     stream: _db.getEventsStream(),
                     builder: (context, snap) {
                       final count = snap.hasData ? snap.data!.docs.length : 0;
-                      return _HeroStat(value: count.toString(), label: 'Événements');
+                      return _HeroStat(
+                        value: count.toString(),
+                        label: 'Événements',
+                      );
                     },
                   ),
                   _heroDivider(),
@@ -213,7 +290,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     stream: _db.getTasksStream(),
                     builder: (context, snap) {
                       final count = snap.hasData ? snap.data!.docs.length : 0;
-                      return _HeroStat(value: count.toString(), label: 'Tâches');
+                      return _HeroStat(
+                        value: count.toString(),
+                        label: 'Tâches',
+                      );
                     },
                   ),
                   _heroDivider(),
@@ -221,7 +301,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     stream: _db.getGalleryStream(),
                     builder: (context, snap) {
                       final count = snap.hasData ? snap.data!.docs.length : 0;
-                      return _HeroStat(value: count.toString(), label: 'Fichiers');
+                      return _HeroStat(
+                        value: count.toString(),
+                        label: 'Fichiers',
+                      );
                     },
                   ),
                 ],
@@ -234,11 +317,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _heroDivider() => Container(
-        width: 1,
-        height: 36,
-        color: Colors.white.withAlpha(51),
-        margin: const EdgeInsets.symmetric(horizontal: 14),
-      );
+    width: 1,
+    height: 36,
+    color: Colors.white.withAlpha(51),
+    margin: const EdgeInsets.symmetric(horizontal: 14),
+  );
 
   Widget _buildMembersRow() {
     return SizedBox(
@@ -256,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final initial = data['initial'] ?? name[0].toUpperCase();
                 final isOnline = data['isOnline'] ?? false;
                 final grad = _getGrad(data['colorIndex'] ?? 0);
-                
+
                 return Padding(
                   padding: const EdgeInsets.only(right: 12),
                   child: Column(
@@ -267,13 +350,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         isOnline: isOnline,
                       ),
                       const SizedBox(height: 6),
-                      Text(name,
-                          style: const TextStyle(
-                            fontFamily: 'Nunito',
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: kTextMuted,
-                          )),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: kTextMuted,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -287,13 +372,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       color: kSurface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withAlpha(30), width: 1.5),
+                      border: Border.all(
+                        color: Colors.white.withAlpha(30),
+                        width: 1.5,
+                      ),
                     ),
                     child: const Icon(Icons.add, color: kTextDim, size: 20),
                   ),
                   const SizedBox(height: 6),
-                  const Text('Ajouter',
-                      style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
+                  const Text(
+                    'Ajouter',
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: kTextMuted,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -320,17 +415,36 @@ class _HomeScreenState extends State<HomeScreen> {
           onTap: () {
             Widget? screen;
             switch (i) {
-              case 0: screen = const ChatListScreen(); break;
-              case 1: screen = const GalleryScreen(); break;
-              case 2: screen = const CalendarScreen(); break;
-              case 3: screen = const TasksScreen(); break;
-              case 4: screen = const VaultScreen(); break;
-              case 5: screen = const FilesScreen(); break;
-              case 6: screen = const NotesScreen(); break;
-              case 7: screen = const LocationScreen(); break;
+              case 0:
+                screen = const ChatListScreen();
+                break;
+              case 1:
+                screen = const GalleryScreen();
+                break;
+              case 2:
+                screen = const CalendarScreen();
+                break;
+              case 3:
+                screen = const TasksScreen();
+                break;
+              case 4:
+                screen = const VaultScreen();
+                break;
+              case 5:
+                screen = const FilesScreen();
+                break;
+              case 6:
+                screen = const NotesScreen();
+                break;
+              case 7:
+                screen = const LocationScreen();
+                break;
             }
             if (screen != null) {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => screen!),
+              );
             }
           },
           child: Column(
@@ -349,7 +463,12 @@ class _HomeScreenState extends State<HomeScreen> {
               Text(
                 a.label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted),
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: kTextMuted,
+                ),
               ),
             ],
           ),
@@ -365,25 +484,43 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(20),
-            child: Text("Aucun événement prévu", style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+            child: Text(
+              "Aucun événement prévu",
+              style: TextStyle(fontFamily: 'Nunito', color: kTextMuted),
+            ),
           );
         }
         final data = snapshot.data!.docs.first.data() as Map<String, dynamic>;
         final title = data['title'] ?? 'Sans nom';
         final time = data['time'] ?? 'Heure non définie';
         final grad = _getGrad(data['colorIndex'] ?? 0);
-        
+
         return SurfaceCard(
           padding: const EdgeInsets.all(16),
           radius: 16,
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(gradient: grad, borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  gradient: grad,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: const Column(
                   children: [
-                    Text('Bientôt', style: TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w900, color: Colors.white, height: 1)),
+                    Text(
+                      'Bientôt',
+                      style: TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        height: 1,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -392,15 +529,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: 'Nunito',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: kText,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.access_time_outlined, size: 12, color: kTextDim),
+                        const Icon(
+                          Icons.access_time_outlined,
+                          size: 12,
+                          color: kTextDim,
+                        ),
                         const SizedBox(width: 4),
-                        Text(time,
-                            style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
+                        Text(
+                          time,
+                          style: const TextStyle(
+                            fontFamily: 'Nunito',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: kTextMuted,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -433,8 +588,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 border: Border.all(color: kSurface, width: 1.5),
               ),
               alignment: Alignment.center,
-              child: Text(initials[i],
-                  style: const TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white)),
+              child: Text(
+                initials[i],
+                style: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
             ),
           );
         }),
@@ -449,7 +611,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!snap.hasData || snap.data!.docs.isEmpty) {
           return const Padding(
             padding: EdgeInsets.all(20),
-            child: Text('Aucune activité récente', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+            child: Text(
+              'Aucune activité récente',
+              style: TextStyle(fontFamily: 'Nunito', color: kTextMuted),
+            ),
           );
         }
         final docs = snap.data!.docs.take(3).toList();
@@ -470,19 +635,37 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: kPurple.withAlpha(38),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.chat_bubble_outline, color: kPurple, size: 18),
+                      child: const Icon(
+                        Icons.chat_bubble_outline,
+                        color: kPurple,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('$sender a envoyé un message',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                          Text(text,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+                          Text(
+                            '$sender a envoyé un message',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Nunito',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: kText,
+                            ),
+                          ),
+                          Text(
+                            text,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Nunito',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: kTextMuted,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -506,10 +689,24 @@ class _HeroStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(value,
-            style: const TextStyle(fontFamily: 'Nunito', fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
-        Text(label,
-            style: const TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white60)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: 'Nunito',
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Nunito',
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: Colors.white60,
+          ),
+        ),
       ],
     );
   }

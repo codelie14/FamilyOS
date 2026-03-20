@@ -88,6 +88,10 @@ class FirestoreService {
     await _db.collection('files').add(fileData);
   }
 
+  Future<void> deleteFile(String fileId) async {
+    await _db.collection('files').doc(fileId).delete();
+  }
+
   // -- Members (Online Strip) --
   Stream<QuerySnapshot> getMembersStream() {
     return _db.collection('members').orderBy('name').snapshots();
