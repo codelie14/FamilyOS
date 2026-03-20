@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyOS – Tâches, Coffre, Notes & Profil</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#7C3AED;--purple-light:#9B59F5;--blue:#4F6FE8;--cyan:#06B6D4;--pink:#EC4899;--green:#10B981;--orange:#F59E0B;--red:#EF4444;--bg:#0F1629;--bg2:#141E35;--surface:#1A2540;--surface2:#202D4A;--text:#F0F4FF;--text-muted:#8A9BC4;--text-dim:#3A4A6A;--grad-main:linear-gradient(135deg,#7C3AED 0%,#4F6FE8 50%,#06B6D4 100%);--grad-cyan:linear-gradient(135deg,#4F6FE8 0%,#06B6D4 100%);--grad-pink:linear-gradient(135deg,#EC4899 0%,#7C3AED 100%);--grad-green:linear-gradient(135deg,#10B981 0%,#06B6D4 100%);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;gap:40px;flex-wrap:wrap;}
+.phone{width:390px;height:844px;background:var(--bg2);border-radius:50px;border:2px solid rgba(255,255,255,0.07);box-shadow:0 0 0 8px rgba(124,58,237,0.05),0 50px 100px rgba(0,0,0,0.7);overflow:hidden;display:flex;flex-direction:column;}
+.status-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 30px 8px;font-size:12px;font-weight:700;font-family:'Sora',sans-serif;}
+.page-topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px 14px;}
+.page-title{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;}
+.topbar-actions{display:flex;gap:8px;}
+.icon-btn{width:38px;height:38px;border-radius:12px;background:var(--surface);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.icon-btn svg{width:18px;height:18px;stroke:var(--text-muted);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.icon-btn.accent{background:var(--grad-main);border:none;box-shadow:0 4px 12px rgba(124,58,237,0.35);} .icon-btn.accent svg{stroke:white;}
+.scroll{flex:1;overflow-y:auto;padding:0 20px 16px;scrollbar-width:none;} .scroll::-webkit-scrollbar{display:none;}
+.section-title{font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.section-title a{font-size:11px;font-weight:700;color:var(--purple-light);letter-spacing:0;text-transform:none;}
+.bottom-nav{background:var(--surface);border-top:1px solid rgba(255,255,255,0.05);padding:10px 8px 28px;display:flex;align-items:flex-end;justify-content:space-around;}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 10px;border-radius:12px;flex:1;position:relative;}
+.nav-item svg{width:22px;height:22px;fill:none;stroke:var(--text-muted);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.nav-item span{font-size:10px;font-weight:700;color:var(--text-muted);}
+.nav-item.active span{background:var(--grad-main);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;} .nav-item.active svg{stroke:var(--purple-light);}
+.nav-item.active::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:20px;height:3px;background:var(--grad-main);border-radius:3px 3px 0 0;}
+.nav-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;}
+.nav-center-btn{width:50px;height:50px;border-radius:16px;background:var(--grad-main);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,0.45);cursor:pointer;margin-top:-14px;}
+.nav-center-btn svg{width:22px;height:22px;fill:none;stroke:white;stroke-width:2;stroke-linecap:round;}
+.nav-center span{font-size:10px;font-weight:700;color:var(--text-muted);}
+
+/* ─── TÂCHES ─── */
+.task-progress-card{background:var(--surface);border:1px solid rgba(255,255,255,0.05);border-radius:18px;padding:18px;margin-bottom:20px;}
+.tp-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.tp-title{font-size:15px;font-weight:800;color:var(--text);}
+.tp-pct{font-size:22px;font-weight:900;background:var(--grad-main);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.progress-ring-wrap{display:flex;align-items:center;gap:16px;}
+.progress-ring{position:relative;width:60px;height:60px;flex-shrink:0;}
+.progress-ring svg{transform:rotate(-90deg);}
+.ring-bg{fill:none;stroke:var(--surface2);stroke-width:5;}
+.ring-fill{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:150;stroke-dashoffset:45;}
+.ring-fill{stroke:url(#ringGrad);}
+.ring-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--text);}
+.tp-stats{display:flex;gap:14px;}
+.tp-stat{text-align:center;}
+.tp-stat-val{font-size:16px;font-weight:900;color:var(--text);}
+.tp-stat-label{font-size:10px;color:var(--text-muted);font-weight:700;}
+
+/* Filter tabs */
+.filter-tabs{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none;}
+.filter-tabs::-webkit-scrollbar{display:none;}
+.ftab{padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;flex-shrink:0;}
+.ftab.active{background:var(--grad-main);color:white;box-shadow:0 4px 12px rgba(124,58,237,0.3);}
+.ftab:not(.active){background:var(--surface);color:var(--text-muted);border:1px solid rgba(255,255,255,0.05);}
+
+/* Task items */
+.task-list{display:flex;flex-direction:column;gap:10px;}
+.task-item{background:var(--surface);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:14px;cursor:pointer;transition:all 0.2s;}
+.task-item:hover{background:var(--surface2);}
+.task-row{display:flex;align-items:flex-start;gap:12px;}
+.task-check{width:22px;height:22px;border-radius:7px;border:2px solid rgba(255,255,255,0.15);flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.task-check.done{background:var(--grad-green);border:none;}
+.task-check.done svg{width:12px;height:12px;stroke:white;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;}
+.task-body{flex:1;min-width:0;}
+.task-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.task-title.done{text-decoration:line-through;color:var(--text-dim);}
+.task-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.task-date{font-size:11px;color:var(--text-muted);font-weight:600;display:flex;align-items:center;gap:4px;}
+.task-date svg{width:11px;height:11px;stroke:var(--text-dim);fill:none;stroke-width:2;}
+.task-assignee{display:flex;align-items:center;gap:5px;}
+.task-av{width:18px;height:18px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:white;}
+.task-av-name{font-size:11px;color:var(--text-muted);font-weight:600;}
+.priority-badge{padding:3px 8px;border-radius:20px;font-size:10px;font-weight:800;}
+.p-high{background:rgba(239,68,68,0.15);color:var(--red);}
+.p-med{background:rgba(245,158,11,0.15);color:var(--orange);}
+.p-low{background:rgba(16,185,129,0.15);color:var(--green);}
+
+/* ─── COFFRE ─── */
+.vault-lock{display:flex;flex-direction:column;align-items:center;padding:20px 0 28px;}
+.vault-icon{width:80px;height:80px;border-radius:26px;background:linear-gradient(135deg,rgba(245,158,11,0.2),rgba(236,72,153,0.2));border:1px solid rgba(245,158,11,0.25);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.vault-icon svg{width:38px;height:38px;stroke:var(--orange);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.vault-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;margin-bottom:6px;}
+.vault-sub{font-size:13px;color:var(--text-muted);font-weight:600;text-align:center;max-width:240px;line-height:1.5;}
+
+/* PIN input */
+.pin-wrap{margin:20px 0;}
+.pin-label{font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;text-align:center;margin-bottom:14px;}
+.pin-dots{display:flex;gap:14px;justify-content:center;margin-bottom:20px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;background:var(--purple);box-shadow:0 0 12px rgba(124,58,237,0.5);}
+.pin-dot.empty{background:transparent;border:2px solid rgba(255,255,255,0.15);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.pin-btn{height:52px;border-radius:14px;background:var(--surface);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:var(--text);cursor:pointer;transition:all 0.15s;}
+.pin-btn:hover{background:var(--surface2);}
+.pin-btn.accent{background:var(--grad-main);color:white;border:none;box-shadow:0 6px 16px rgba(124,58,237,0.35);}
+.pin-btn.del{color:var(--text-muted);}
+
+/* Vault content */
+.vault-cat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.vault-cat-card{background:var(--surface);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:14px;cursor:pointer;transition:all 0.2s;}
+.vault-cat-card:hover{background:var(--surface2);transform:translateY(-2px);}
+.vc-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:10px;}
+.vc-icon svg{width:20px;height:20px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.vc-name{font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px;}
+.vc-count{font-size:11px;color:var(--text-muted);font-weight:600;}
+.vci-1{background:rgba(245,158,11,0.15);} .vci-1 svg{stroke:var(--orange);}
+.vci-2{background:rgba(124,58,237,0.15);} .vci-2 svg{stroke:var(--purple-light);}
+.vci-3{background:rgba(6,182,212,0.15);} .vci-3 svg{stroke:var(--cyan);}
+.vci-4{background:rgba(16,185,129,0.15);} .vci-4 svg{stroke:var(--green);}
+
+.vault-secret-list{display:flex;flex-direction:column;gap:8px;}
+.vault-secret-item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid rgba(255,255,255,0.05);border-radius:13px;padding:12px 14px;}
+.vs-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vs-icon svg{width:17px;height:17px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.vs-body{flex:1;min-width:0;}
+.vs-name{font-size:13px;font-weight:800;color:var(--text);}
+.vs-val{font-size:12px;color:var(--text-muted);font-weight:600;font-family:'Sora',sans-serif;letter-spacing:2px;}
+.vs-copy{width:30px;height:30px;border-radius:9px;background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.vs-copy svg{width:13px;height:13px;stroke:var(--text-muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+
+/* ─── NOTES ─── */
+.notes-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+.note-card{border-radius:16px;padding:14px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;min-height:130px;}
+.note-card:hover{transform:translateY(-3px);}
+.note-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.06);}
+.note-date{font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);margin-bottom:8px;}
+.note-title{font-size:14px;font-weight:800;color:white;margin-bottom:6px;}
+.note-preview{font-size:12px;color:rgba(255,255,255,0.65);font-weight:600;line-height:1.5;}
+.note-large{grid-column:span 2;min-height:100px;}
+.n1{background:linear-gradient(135deg,#7C3AED,#4F6FE8);}
+.n2{background:linear-gradient(135deg,#EC4899,#7C3AED);}
+.n3{background:linear-gradient(135deg,#06B6D4,#4F6FE8);}
+.n4{background:linear-gradient(135deg,#10B981,#06B6D4);}
+.n5{background:linear-gradient(135deg,#F59E0B,#EC4899);}
+
+/* ─── PROFIL ─── */
+.profile-hero{display:flex;flex-direction:column;align-items:center;padding:20px 0 24px;}
+.profile-av{width:90px;height:90px;border-radius:28px;background:var(--grad-main);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:800;color:white;margin-bottom:14px;box-shadow:0 12px 36px rgba(124,58,237,0.4);border:3px solid rgba(255,255,255,0.15);position:relative;}
+.profile-edit-btn{position:absolute;bottom:-4px;right:-4px;width:28px;height:28px;border-radius:9px;background:var(--surface);border:2px solid var(--bg2);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.profile-edit-btn svg{width:13px;height:13px;stroke:var(--text-muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.profile-name{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;margin-bottom:4px;}
+.profile-role{display:inline-flex;align-items:center;gap:6px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.25);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--purple-light);}
+.profile-role svg{width:12px;height:12px;stroke:var(--purple-light);fill:none;stroke-width:2;}
+
+.profile-stats{display:flex;justify-content:center;gap:28px;margin-bottom:24px;padding:16px;background:var(--surface);border-radius:18px;border:1px solid rgba(255,255,255,0.05);}
+.pstat{text-align:center;}
+.pstat-val{font-size:20px;font-weight:900;color:var(--text);}
+.pstat-label{font-size:11px;color:var(--text-muted);font-weight:700;}
+
+.settings-list{display:flex;flex-direction:column;gap:4px;margin-bottom:20px;}
+.settings-item{display:flex;align-items:center;gap:12px;padding:14px;border-radius:13px;cursor:pointer;transition:all 0.2s;}
+.settings-item:hover{background:var(--surface);}
+.si-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.si-icon svg{width:18px;height:18px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.si-body{flex:1;}
+.si-title{font-size:14px;font-weight:800;color:var(--text);}
+.si-sub{font-size:11px;color:var(--text-muted);font-weight:600;}
+.si-arrow{width:20px;height:20px;stroke:var(--text-dim);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.si-toggle{width:38px;height:22px;border-radius:11px;background:var(--grad-main);position:relative;cursor:pointer;}
+.si-toggle::after{content:'';position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.3);}
+.si-toggle.off{background:var(--surface2);}
+.si-toggle.off::after{right:auto;left:3px;}
+
+.logout-btn{width:100%;padding:14px;border-radius:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:var(--red);font-family:'Nunito',sans-serif;font-weight:800;font-size:14px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+.logout-btn:hover{background:rgba(239,68,68,0.15);}
+.logout-btn svg{width:17px;height:17px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+</style>
+</head>
+<body>
+
+<!-- ─── TÂCHES ─── -->
+<div class="phone">
+  <div class="status-bar"><span>09:41</span><span style="opacity:.4;">···</span></div>
+  <div class="page-topbar">
+    <div class="page-title">Tâches</div>
+    <div class="topbar-actions">
+      <div class="icon-btn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+      <div class="icon-btn accent"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+  </div>
+  <div class="scroll">
+    <!-- Progress -->
+    <div class="task-progress-card">
+      <div style="display:flex;align-items:center;gap:20px;">
+        <div class="progress-ring">
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#06B6D4"/></linearGradient></defs>
+            <circle class="ring-bg" cx="30" cy="30" r="25"/>
+            <circle class="ring-fill" cx="30" cy="30" r="25"/>
+          </svg>
+          <div class="ring-label">70%</div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">Cette semaine</div>
+          <div style="font-size:20px;font-weight:900;color:var(--text);">7 / 10 tâches</div>
+          <div style="font-size:12px;color:var(--green);font-weight:700;margin-top:2px;">↑ 3 terminées aujourd'hui</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+      <div class="ftab active">Toutes</div>
+      <div class="ftab">En cours</div>
+      <div class="ftab">Terminées</div>
+      <div class="ftab">Marie</div>
+      <div class="ftab">Lucas</div>
+    </div>
+
+    <div class="section-title">En cours</div>
+    <div class="task-list">
+      <div class="task-item">
+        <div class="task-row">
+          <div class="task-check"><svg viewBox="0 0 24 24"></svg></div>
+          <div class="task-body">
+            <div class="task-title">Préparer le gâteau d'anniversaire 🎂</div>
+            <div class="task-meta">
+              <div class="task-date"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>24 Mars</div>
+              <div class="task-assignee"><div class="task-av" style="background:linear-gradient(135deg,#7C3AED,#4F6FE8);">A</div><div class="task-av-name">Admin</div></div>
+              <div class="priority-badge p-high">Urgent</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="task-item">
+        <div class="task-row">
+          <div class="task-check"><svg viewBox="0 0 24 24"></svg></div>
+          <div class="task-body">
+            <div class="task-title">Réserver le restaurant pour 6 personnes</div>
+            <div class="task-meta">
+              <div class="task-date"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>22 Mars</div>
+              <div class="task-assignee"><div class="task-av" style="background:linear-gradient(135deg,#EC4899,#7C3AED);">M</div><div class="task-av-name">Marie</div></div>
+              <div class="priority-badge p-med">Moyen</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="task-item">
+        <div class="task-row">
+          <div class="task-check"><svg viewBox="0 0 24 24"></svg></div>
+          <div class="task-body">
+            <div class="task-title">Acheter les décorations 🎈</div>
+            <div class="task-meta">
+              <div class="task-date"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>23 Mars</div>
+              <div class="task-assignee"><div class="task-av" style="background:linear-gradient(135deg,#06B6D4,#4F6FE8);">L</div><div class="task-av-name">Lucas</div></div>
+              <div class="priority-badge p-low">Normal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:20px;">Terminées</div>
+    <div class="task-list">
+      <div class="task-item" style="opacity:0.65;">
+        <div class="task-row">
+          <div class="task-check done"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="task-body">
+            <div class="task-title done">Faire les courses</div>
+            <div class="task-meta">
+              <div class="task-assignee"><div class="task-av" style="background:linear-gradient(135deg,#10B981,#06B6D4);">S</div><div class="task-av-name">Sophie</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="task-item" style="opacity:0.65;">
+        <div class="task-row">
+          <div class="task-check done"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="task-body">
+            <div class="task-title done">Envoyer les invitations</div>
+            <div class="task-meta">
+              <div class="task-assignee"><div class="task-av" style="background:linear-gradient(135deg,#EC4899,#7C3AED);">M</div><div class="task-av-name">Marie</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Accueil</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Fichiers</span></div>
+    <div class="nav-center"><div class="nav-center-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>Nouveau</span></div>
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Famille</span></div>
+  </div>
+</div>
+
+<!-- ─── COFFRE SÉCURISÉ ─── -->
+<div class="phone">
+  <div class="status-bar"><span>09:41</span><span style="opacity:.4;">···</span></div>
+  <div class="page-topbar">
+    <div class="page-title">Coffre</div>
+    <div class="topbar-actions">
+      <div class="icon-btn accent"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="vault-lock">
+      <div class="vault-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg></div>
+      <div class="vault-title">Coffre Familial 🔐</div>
+      <div class="vault-sub">Vos données sont chiffrées et protégées par votre code PIN</div>
+    </div>
+
+    <!-- Vault categories (after unlock) -->
+    <div class="section-title">Catégories</div>
+    <div class="vault-cat">
+      <div class="vault-cat-card">
+        <div class="vc-icon vci-1"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div class="vc-name">Documents</div><div class="vc-count">5 fichiers</div>
+      </div>
+      <div class="vault-cat-card">
+        <div class="vc-icon vci-2"><svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+        <div class="vc-name">Cartes</div><div class="vc-count">3 fichiers</div>
+      </div>
+      <div class="vault-cat-card">
+        <div class="vc-icon vci-3"><svg viewBox="0 0 24 24"><path d="M21 2H3a1 1 0 0 0-1 1v8c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V3a1 1 0 0 0-1-1z"/></svg></div>
+        <div class="vc-name">Mots de passe</div><div class="vc-count">8 entrées</div>
+      </div>
+      <div class="vault-cat-card">
+        <div class="vc-icon vci-4"><svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="vc-name">Santé</div><div class="vc-count">2 fichiers</div>
+      </div>
+    </div>
+
+    <div class="section-title">Mots de passe récents</div>
+    <div class="vault-secret-list">
+      <div class="vault-secret-item">
+        <div class="vs-icon" style="background:rgba(245,158,11,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--orange)"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <div class="vs-body"><div class="vs-name">Netflix Famille</div><div class="vs-val">••••••••••</div></div>
+        <div class="vs-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div>
+      </div>
+      <div class="vault-secret-item">
+        <div class="vs-icon" style="background:rgba(6,182,212,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--cyan);"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <div class="vs-body"><div class="vs-name">Freebox Admin</div><div class="vs-val">••••••••••</div></div>
+        <div class="vs-copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Accueil</span></div>
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Fichiers</span></div>
+    <div class="nav-center"><div class="nav-center-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>Nouveau</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Famille</span></div>
+  </div>
+</div>
+
+<!-- ─── NOTES ─── -->
+<div class="phone">
+  <div class="status-bar"><span>09:41</span><span style="opacity:.4;">···</span></div>
+  <div class="page-topbar">
+    <div class="page-title">Notes</div>
+    <div class="topbar-actions">
+      <div class="icon-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div class="icon-btn accent"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="section-title">Épinglées</div>
+    <div class="notes-grid">
+      <div class="note-card note-large n1">
+        <div class="note-date">📌 Aujourd'hui, 09:20</div>
+        <div class="note-title">Liste de courses</div>
+        <div class="note-preview">🥛 Lait, 🥚 Œufs, 🍞 Pain, 🧀 Fromage, 🍗 Poulet, 🥦 Brocolis…</div>
+      </div>
+    </div>
+
+    <div class="section-title">Récentes</div>
+    <div class="notes-grid">
+      <div class="note-card n2">
+        <div class="note-date">Hier</div>
+        <div class="note-title">Idées vacances été 2026</div>
+        <div class="note-preview">Portugal, Grèce, Bretagne…</div>
+      </div>
+      <div class="note-card n3">
+        <div class="note-date">Lun</div>
+        <div class="note-title">Rdv médecin Lucas</div>
+        <div class="note-preview">Dr. Martin – 14h30 mardi</div>
+      </div>
+      <div class="note-card n4">
+        <div class="note-date">Sam</div>
+        <div class="note-title">Recette Tarte Tatin</div>
+        <div class="note-preview">6 pommes, beurre, sucre…</div>
+      </div>
+      <div class="note-card n5">
+        <div class="note-date">Ven</div>
+        <div class="note-title">Mot de passe WiFi</div>
+        <div class="note-preview">Maison_Dubois_2026</div>
+      </div>
+    </div>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Accueil</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Fichiers</span></div>
+    <div class="nav-center"><div class="nav-center-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>Nouveau</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Famille</span></div>
+  </div>
+</div>
+
+<!-- ─── PROFIL ─── -->
+<div class="phone">
+  <div class="status-bar"><span>09:41</span><span style="opacity:.4;">···</span></div>
+  <div class="page-topbar">
+    <div class="page-title">Profil</div>
+    <div class="topbar-actions">
+      <div class="icon-btn"><svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+    </div>
+  </div>
+  <div class="scroll">
+    <!-- Profile hero -->
+    <div class="profile-hero">
+      <div class="profile-av">A
+        <div class="profile-edit-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      </div>
+      <div class="profile-name">Administrateur</div>
+      <div style="margin-top:8px;"><div class="profile-role"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin • Famille Dubois</div></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="profile-stats">
+      <div class="pstat"><div class="pstat-val">4</div><div class="pstat-label">Membres</div></div>
+      <div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;"></div>
+      <div class="pstat"><div class="pstat-val">128</div><div class="pstat-label">Fichiers</div></div>
+      <div style="width:1px;background:rgba(255,255,255,0.07);align-self:stretch;"></div>
+      <div class="pstat"><div class="pstat-val">47</div><div class="pstat-label">Messages</div></div>
+    </div>
+
+    <div class="section-title">Compte</div>
+    <div class="settings-list">
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(124,58,237,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--purple-light);"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="si-body"><div class="si-title">Informations personnelles</div><div class="si-sub">Nom, email, photo</div></div>
+        <svg class="si-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(16,185,129,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--green);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <div class="si-body"><div class="si-title">Gérer les membres</div><div class="si-sub">4 membres actifs</div></div>
+        <svg class="si-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+
+    <div class="section-title">Sécurité</div>
+    <div class="settings-list">
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(245,158,11,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--orange);"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+        <div class="si-body"><div class="si-title">Mot de passe</div><div class="si-sub">Modifié il y a 30 jours</div></div>
+        <svg class="si-arrow" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(6,182,212,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--cyan);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="si-body"><div class="si-title">Authentification 2FA</div><div class="si-sub">Activée</div></div>
+        <div class="si-toggle"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Préférences</div>
+    <div class="settings-list">
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(124,58,237,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--purple-light);"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+        <div class="si-body"><div class="si-title">Mode sombre</div><div class="si-sub">Thème nuit activé</div></div>
+        <div class="si-toggle"></div>
+      </div>
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(236,72,153,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--pink);"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+        <div class="si-body"><div class="si-title">Notifications</div><div class="si-sub">Toutes activées</div></div>
+        <div class="si-toggle"></div>
+      </div>
+      <div class="settings-item">
+        <div class="si-icon" style="background:rgba(16,185,129,0.15);"><svg viewBox="0 0 24 24" style="stroke:var(--green);"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <div class="si-body"><div class="si-title">Partage de position</div><div class="si-sub">Désactivé</div></div>
+        <div class="si-toggle off"></div>
+      </div>
+    </div>
+
+    <button class="logout-btn">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Se déconnecter
+    </button>
+  </div>
+  <div class="bottom-nav">
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Accueil</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>Fichiers</span></div>
+    <div class="nav-center"><div class="nav-center-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><span>Nouveau</span></div>
+    <div class="nav-item"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Chat</span></div>
+    <div class="nav-item active"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span>Famille</span></div>
+  </div>
+</div>
+
+</body>
+</html>

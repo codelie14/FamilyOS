@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyOS – Accueil</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#7C3AED;--purple-light:#9B59F5;--blue:#4F6FE8;--cyan:#06B6D4;--pink:#EC4899;--green:#10B981;--orange:#F59E0B;--bg:#0F1629;--bg2:#141E35;--surface:#1A2540;--surface2:#202D4A;--text:#F0F4FF;--text-muted:#8A9BC4;--text-dim:#3A4A6A;--grad-main:linear-gradient(135deg,#7C3AED 0%,#4F6FE8 50%,#06B6D4 100%);--grad-cyan:linear-gradient(135deg,#4F6FE8 0%,#06B6D4 100%);--grad-pink:linear-gradient(135deg,#EC4899 0%,#7C3AED 100%);}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+
+.phone{width:390px;height:844px;background:var(--bg2);border-radius:50px;border:2px solid rgba(255,255,255,0.07);box-shadow:0 0 0 8px rgba(124,58,237,0.05),0 50px 100px rgba(0,0,0,0.7);overflow:hidden;display:flex;flex-direction:column;}
+
+.status-bar{display:flex;align-items:center;justify-content:space-between;padding:16px 30px 8px;font-size:12px;font-weight:700;font-family:'Sora',sans-serif;}
+.status-icons{display:flex;gap:5px;align-items:center;}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 12px;}
+.logo-wrap{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;border-radius:11px;background:var(--grad-main);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(124,58,237,0.4);}
+.logo-text{font-family:'Sora',sans-serif;font-size:19px;font-weight:700;}
+.logo-text span{background:var(--grad-cyan);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.topbar-actions{display:flex;align-items:center;gap:8px;}
+.icon-btn{width:38px;height:38px;border-radius:12px;background:var(--surface);border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;}
+.icon-btn svg{width:18px;height:18px;stroke:var(--text-muted);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.notif-dot{position:absolute;top:7px;right:7px;width:7px;height:7px;background:var(--pink);border-radius:50%;border:1.5px solid var(--bg2);}
+.avatar-btn{width:38px;height:38px;border-radius:12px;background:var(--grad-main);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:white;border:2px solid rgba(255,255,255,0.15);}
+
+.scroll{flex:1;overflow-y:auto;padding:0 20px 16px;scrollbar-width:none;}
+.scroll::-webkit-scrollbar{display:none;}
+
+/* Hero card */
+.hero-card{border-radius:22px;background:var(--grad-main);padding:22px;margin-bottom:18px;position:relative;overflow:hidden;}
+.hero-card::before{content:'';position:absolute;top:-30px;right:-30px;width:140px;height:140px;border-radius:50%;background:rgba(255,255,255,0.08);}
+.hero-card::after{content:'';position:absolute;bottom:-50px;left:40px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.05);}
+.hero-greeting{font-size:13px;font-weight:700;color:rgba(255,255,255,0.7);margin-bottom:4px;}
+.hero-name{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:white;margin-bottom:14px;}
+.hero-stats{display:flex;gap:16px;position:relative;z-index:1;}
+.hero-stat{text-align:center;}
+.hero-stat-val{font-size:22px;font-weight:900;color:white;}
+.hero-stat-label{font-size:10px;color:rgba(255,255,255,0.65);font-weight:700;}
+.hero-divider{width:1px;background:rgba(255,255,255,0.2);align-self:stretch;}
+
+/* Section */
+.section-title{font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;}
+.section-title a{font-size:11px;font-weight:700;color:var(--purple-light);letter-spacing:0;text-transform:none;cursor:pointer;}
+
+/* Member bubbles */
+.members-row{display:flex;gap:12px;margin-bottom:20px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+.members-row::-webkit-scrollbar{display:none;}
+.member-item{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;cursor:pointer;}
+.member-avatar{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:white;position:relative;border:2px solid rgba(255,255,255,0.1);}
+.member-avatar.online::after{content:'';position:absolute;bottom:3px;right:3px;width:10px;height:10px;border-radius:50%;background:#10B981;border:2px solid var(--bg2);}
+.member-name{font-size:11px;font-weight:700;color:var(--text-muted);}
+.member-add{width:52px;height:52px;border-radius:16px;background:var(--surface);border:1.5px dashed rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.member-add svg{width:20px;height:20px;stroke:var(--text-dim);fill:none;stroke-width:2;stroke-linecap:round;}
+
+/* Quick actions */
+.quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.quick-item{display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;}
+.quick-icon{width:52px;height:52px;border-radius:16px;display:flex;align-items:center;justify-content:center;transition:transform 0.2s;}
+.quick-icon:hover{transform:scale(1.08);}
+.quick-icon svg{width:22px;height:22px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.quick-label{font-size:11px;font-weight:700;color:var(--text-muted);text-align:center;}
+
+.qi-1{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.2);} .qi-1 svg{stroke:var(--purple-light);}
+.qi-2{background:rgba(236,72,153,0.15);border:1px solid rgba(236,72,153,0.2);} .qi-2 svg{stroke:var(--pink);}
+.qi-3{background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.2);} .qi-3 svg{stroke:var(--cyan);}
+.qi-4{background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.2);} .qi-4 svg{stroke:var(--green);}
+.qi-5{background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.2);} .qi-5 svg{stroke:var(--orange);}
+.qi-6{background:rgba(79,111,232,0.15);border:1px solid rgba(79,111,232,0.2);} .qi-6 svg{stroke:var(--blue);}
+.qi-7{background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.2);} .qi-7 svg{stroke:var(--purple-light);}
+.qi-8{background:rgba(236,72,153,0.12);border:1px solid rgba(255,255,255,0.06);} .qi-8 svg{stroke:var(--text-muted);}
+
+/* Activity feed */
+.activity-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.activity-item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid rgba(255,255,255,0.05);border-radius:14px;padding:12px 14px;cursor:pointer;transition:all 0.2s;}
+.activity-item:hover{background:var(--surface2);}
+.act-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.act-icon svg{width:18px;height:18px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.act-body{flex:1;min-width:0;}
+.act-title{font-size:13px;font-weight:800;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.act-sub{font-size:11px;color:var(--text-muted);font-weight:600;}
+.act-time{font-size:10px;color:var(--text-dim);font-weight:700;flex-shrink:0;}
+.act-badge{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+
+.a1{background:rgba(124,58,237,0.15);} .a1 svg{stroke:var(--purple-light);}
+.a2{background:rgba(236,72,153,0.15);} .a2 svg{stroke:var(--pink);}
+.a3{background:rgba(6,182,212,0.15);} .a3 svg{stroke:var(--cyan);}
+.a4{background:rgba(245,158,11,0.15);} .a4 svg{stroke:var(--orange);}
+.a5{background:rgba(16,185,129,0.15);} .a5 svg{stroke:var(--green);}
+
+/* Upcoming event */
+.event-card{background:var(--surface);border:1px solid rgba(255,255,255,0.05);border-radius:16px;padding:16px;margin-bottom:20px;display:flex;gap:14px;align-items:center;}
+.event-date{background:var(--grad-main);border-radius:12px;padding:10px 14px;text-align:center;flex-shrink:0;}
+.event-day{font-size:22px;font-weight:900;color:white;line-height:1;}
+.event-month{font-size:10px;font-weight:800;color:rgba(255,255,255,0.7);text-transform:uppercase;}
+.event-info{flex:1;}
+.event-title{font-size:14px;font-weight:800;color:var(--text);margin-bottom:4px;}
+.event-meta{font-size:12px;color:var(--text-muted);font-weight:600;display:flex;align-items:center;gap:6px;}
+.event-meta svg{width:12px;height:12px;stroke:var(--text-dim);fill:none;stroke-width:2;}
+.event-members{display:flex;margin-left:auto;}
+.event-av{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;border:2px solid var(--surface);margin-left:-8px;}
+
+/* Bottom nav */
+.bottom-nav{background:var(--surface);border-top:1px solid rgba(255,255,255,0.05);padding:10px 8px 28px;display:flex;align-items:flex-end;justify-content:space-around;}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:6px 10px;border-radius:12px;transition:all 0.2s;flex:1;position:relative;}
+.nav-item svg{width:22px;height:22px;fill:none;stroke:var(--text-muted);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.nav-item span{font-size:10px;font-weight:700;color:var(--text-muted);}
+.nav-item.active span{background:var(--grad-main);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.nav-item.active svg{stroke:var(--purple-light);}
+.nav-item.active::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:20px;height:3px;background:var(--grad-main);border-radius:3px 3px 0 0;}
+.nav-center{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;}
+.nav-center-btn{width:50px;height:50px;border-radius:16px;background:var(--grad-main);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(124,58,237,0.45);cursor:pointer;margin-top:-14px;}
+.nav-center-btn svg{width:22px;height:22px;fill:none;stroke:white;stroke-width:2;stroke-linecap:round;}
+.nav-center span{font-size:10px;font-weight:700;color:var(--text-muted);}
+</style>
+</head>
+<body>
+<div class="phone">
+  <!-- Status -->
+  <div class="status-bar">
+    <span>09:41</span>
+    <div class="status-icons">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 6c5.5-4 16.5-4 22 0M5 10c3.9-2.67 10.1-2.67 14 0M9 14c1.9-1.33 5.1-1.33 7 0"/></svg>
+      <svg width="20" height="12" viewBox="0 0 24 14" fill="none"><rect x="0" y="1" width="20" height="12" rx="3" stroke="white" stroke-width="1.5"/><rect x="21" y="4" width="3" height="6" rx="1.5" fill="white"/><rect x="1.5" y="2.5" width="14" height="9" rx="1.5" fill="white"/></svg>
+    </div>
+  </div>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 10.5L12 3L21 10.5V21H15V15H9V21H3V10.5Z" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5" stroke-linejoin="round"/><circle cx="12" cy="8" r="2" fill="white"/></svg>
+      </div>
+      <div class="logo-text">Family<span>OS</span></div>
+    </div>
+    <div class="topbar-actions">
+      <div class="icon-btn">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="avatar-btn">A</div>
+    </div>
+  </div>
+
+  <div class="scroll">
+    <!-- Hero Card -->
+    <div class="hero-card">
+      <div class="hero-greeting">Bonjour 👋</div>
+      <div class="hero-name">Famille Dubois</div>
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="hero-stat-val">4</div><div class="hero-stat-label">Membres</div></div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat"><div class="hero-stat-val">3</div><div class="hero-stat-label">Événements</div></div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat"><div class="hero-stat-val">7</div><div class="hero-stat-label">Tâches</div></div>
+        <div class="hero-divider"></div>
+        <div class="hero-stat"><div class="hero-stat-val">128</div><div class="hero-stat-label">Fichiers</div></div>
+      </div>
+    </div>
+
+    <!-- Members -->
+    <div class="section-title">Membres <a>Gérer</a></div>
+    <div class="members-row">
+      <div class="member-item">
+        <div class="member-avatar online" style="background:linear-gradient(135deg,#7C3AED,#4F6FE8);">A</div>
+        <div class="member-name">Admin</div>
+      </div>
+      <div class="member-item">
+        <div class="member-avatar online" style="background:linear-gradient(135deg,#EC4899,#7C3AED);">M</div>
+        <div class="member-name">Marie</div>
+      </div>
+      <div class="member-item">
+        <div class="member-avatar" style="background:linear-gradient(135deg,#06B6D4,#4F6FE8);">L</div>
+        <div class="member-name">Lucas</div>
+      </div>
+      <div class="member-item">
+        <div class="member-avatar" style="background:linear-gradient(135deg,#10B981,#06B6D4);">S</div>
+        <div class="member-name">Sophie</div>
+      </div>
+      <div class="member-item">
+        <div class="member-add"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+        <div class="member-name">Ajouter</div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="section-title">Accès rapide</div>
+    <div class="quick-grid">
+      <div class="quick-item"><div class="quick-icon qi-1"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div class="quick-label">Chat</div></div>
+      <div class="quick-item"><div class="quick-icon qi-2"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div><div class="quick-label">Galerie</div></div>
+      <div class="quick-item"><div class="quick-icon qi-3"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div><div class="quick-label">Agenda</div></div>
+      <div class="quick-item"><div class="quick-icon qi-4"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div class="quick-label">Tâches</div></div>
+      <div class="quick-item"><div class="quick-icon qi-5"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div class="quick-label">Coffre</div></div>
+      <div class="quick-item"><div class="quick-icon qi-6"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div><div class="quick-label">Fichiers</div></div>
+      <div class="quick-item"><div class="quick-icon qi-7"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="quick-label">Notes</div></div>
+      <div class="quick-item"><div class="quick-icon qi-8"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div class="quick-label">Localisation</div></div>
+    </div>
+
+    <!-- Prochain événement -->
+    <div class="section-title">Prochain événement</div>
+    <div class="event-card">
+      <div class="event-date"><div class="event-day">24</div><div class="event-month">Mars</div></div>
+      <div class="event-info">
+        <div class="event-title">Anniversaire de Sophie 🎂</div>
+        <div class="event-meta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 18:00 • Restaurant</div>
+      </div>
+      <div class="event-members">
+        <div class="event-av" style="background:linear-gradient(135deg,#7C3AED,#4F6FE8);">A</div>
+        <div class="event-av" style="background:linear-gradient(135deg,#EC4899,#7C3AED);">M</div>
+        <div class="event-av" style="background:linear-gradient(135deg,#06B6D4,#4F6FE8);">L</div>
+      </div>
+    </div>
+
+    <!-- Activité récente -->
+    <div class="section-title">Activité récente <a>Tout voir</a></div>
+    <div class="activity-list">
+      <div class="activity-item">
+        <div class="act-icon a2"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>
+        <div class="act-body"><div class="act-title">Marie a ajouté 12 photos</div><div class="act-sub">Album Vacances 2025</div></div>
+        <div class="act-time">2 min</div>
+      </div>
+      <div class="activity-item">
+        <div class="act-icon a1"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="act-body"><div class="act-title">Lucas : "On se retrouve à 18h ?"</div><div class="act-sub">Chat familial</div></div>
+        <div class="act-time">14 min</div>
+      </div>
+      <div class="activity-item">
+        <div class="act-icon a4"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <div class="act-body"><div class="act-title">Tâche terminée : Courses</div><div class="act-sub">Assignée à Sophie</div></div>
+        <div class="act-time">1h</div>
+      </div>
+      <div class="activity-item">
+        <div class="act-icon a3"><svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+        <div class="act-body"><div class="act-title">Contrat_Maison.pdf partagé</div><div class="act-sub">Coffre sécurisé</div></div>
+        <div class="act-time">3h</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Nav -->
+  <div class="bottom-nav">
+    <div class="nav-item active">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Accueil</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span>Fichiers</span>
+    </div>
+    <div class="nav-center">
+      <div class="nav-center-btn"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      <span>Nouveau</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Chat</span>
+    </div>
+    <div class="nav-item">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Famille</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

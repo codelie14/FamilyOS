@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FamilyOS – Connexion</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --purple:#7C3AED; --purple-light:#9B59F5; --blue:#4F6FE8; --cyan:#06B6D4;
+  --pink:#EC4899; --bg:#0F1629; --bg2:#141E35; --surface:#1A2540; --surface2:#202D4A;
+  --text:#F0F4FF; --text-muted:#8A9BC4; --text-dim:#3A4A6A;
+  --grad-main:linear-gradient(135deg,#7C3AED 0%,#4F6FE8 50%,#06B6D4 100%);
+  --grad-cyan:linear-gradient(135deg,#4F6FE8 0%,#06B6D4 100%);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 20px;gap:60px;flex-wrap:wrap;}
+
+.phone{width:390px;min-height:844px;background:var(--bg2);border-radius:50px;border:2px solid rgba(255,255,255,0.07);box-shadow:0 0 0 8px rgba(124,58,237,0.05),0 50px 100px rgba(0,0,0,0.7);overflow:hidden;display:flex;flex-direction:column;position:relative;}
+
+/* Mesh background */
+.auth-bg{position:absolute;inset:0;overflow:hidden;pointer-events:none;}
+.auth-bg::before{content:'';position:absolute;top:-80px;left:-80px;width:350px;height:350px;border-radius:50%;background:radial-gradient(circle,rgba(124,58,237,0.25) 0%,transparent 70%);}
+.auth-bg::after{content:'';position:absolute;bottom:-100px;right:-80px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(6,182,212,0.2) 0%,transparent 70%);}
+
+.status-bar{display:flex;align-items:center;justify-content:space-between;padding:18px 30px 8px;font-size:12px;font-weight:700;font-family:'Sora',sans-serif;position:relative;z-index:1;}
+.status-icons{display:flex;gap:5px;align-items:center;}
+
+.auth-content{flex:1;display:flex;flex-direction:column;padding:20px 28px 40px;position:relative;z-index:1;}
+
+/* Hero logo area */
+.auth-hero{display:flex;flex-direction:column;align-items:center;padding:20px 0 32px;}
+.hero-icon{width:80px;height:80px;border-radius:26px;background:var(--grad-main);display:flex;align-items:center;justify-content:center;box-shadow:0 16px 48px rgba(124,58,237,0.45),0 0 0 12px rgba(124,58,237,0.1),0 0 0 24px rgba(124,58,237,0.05);margin-bottom:20px;animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+.hero-icon svg{width:44px;height:44px;}
+.hero-title{font-family:'Sora',sans-serif;font-size:28px;font-weight:700;text-align:center;margin-bottom:6px;}
+.hero-title span{background:var(--grad-cyan);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:14px;color:var(--text-muted);font-weight:600;text-align:center;}
+
+/* Tabs */
+.auth-tabs{display:flex;background:var(--surface);border-radius:14px;padding:4px;margin-bottom:28px;border:1px solid rgba(255,255,255,0.05);}
+.auth-tab{flex:1;text-align:center;padding:10px;border-radius:10px;font-size:14px;font-weight:800;color:var(--text-muted);cursor:pointer;transition:all 0.2s;}
+.auth-tab.active{background:var(--grad-main);color:white;box-shadow:0 4px 14px rgba(124,58,237,0.35);}
+
+/* Form */
+.form-group{margin-bottom:16px;}
+.form-label{font-size:12px;font-weight:800;color:var(--text-muted);letter-spacing:0.5px;margin-bottom:8px;display:block;}
+.form-input-wrap{position:relative;}
+.form-input-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;stroke:var(--text-dim);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.form-input{width:100%;background:var(--surface);border:1.5px solid rgba(255,255,255,0.06);border-radius:13px;padding:13px 14px 13px 42px;color:var(--text);font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;outline:none;transition:border-color 0.2s;}
+.form-input:focus{border-color:var(--purple);}
+.form-input::placeholder{color:var(--text-dim);}
+.eye-btn{position:absolute;right:14px;top:50%;transform:translateY(-50%);cursor:pointer;}
+.eye-btn svg{width:17px;height:17px;stroke:var(--text-dim);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+
+.forgot{text-align:right;margin-bottom:24px;font-size:12px;font-weight:700;color:var(--purple-light);cursor:pointer;}
+
+.btn-main{width:100%;background:var(--grad-main);color:white;border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;padding:15px;cursor:pointer;box-shadow:0 10px 28px rgba(124,58,237,0.4);transition:transform 0.2s;margin-bottom:20px;}
+.btn-main:hover{transform:translateY(-2px);}
+
+.divider{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.divider-line{flex:1;height:1px;background:rgba(255,255,255,0.07);}
+.divider span{font-size:12px;color:var(--text-dim);font-weight:700;}
+
+.social-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px;}
+.social-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:var(--surface);border:1px solid rgba(255,255,255,0.06);border-radius:13px;padding:12px;cursor:pointer;font-size:13px;font-weight:700;color:var(--text-muted);transition:all 0.2s;}
+.social-btn:hover{background:var(--surface2);color:var(--text);}
+.social-btn svg{width:18px;height:18px;}
+
+.auth-footer{text-align:center;font-size:13px;color:var(--text-muted);font-weight:600;}
+.auth-footer a{color:var(--purple-light);font-weight:800;text-decoration:none;}
+
+/* Forgot password screen */
+.phone2{width:390px;min-height:844px;background:var(--bg2);border-radius:50px;border:2px solid rgba(255,255,255,0.07);box-shadow:0 0 0 8px rgba(124,58,237,0.05),0 50px 100px rgba(0,0,0,0.7);overflow:hidden;display:flex;flex-direction:column;}
+.back-btn{display:flex;align-items:center;gap:8px;color:var(--text-muted);font-size:14px;font-weight:700;cursor:pointer;padding:20px 28px 0;}
+.back-btn svg{width:20px;height:20px;stroke:var(--text-muted);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.page-header{padding:20px 28px 28px;}
+.page-header-icon{width:56px;height:56px;border-radius:18px;background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.25);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.page-header-icon svg{width:26px;height:26px;stroke:var(--purple-light);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.page-h1{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;margin-bottom:8px;}
+.page-h1 span{background:var(--grad-main);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.page-desc{font-size:14px;color:var(--text-muted);font-weight:600;line-height:1.6;}
+.reset-content{flex:1;padding:0 28px 40px;}
+
+/* Success state */
+.success-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 0;}
+.success-icon{width:72px;height:72px;border-radius:24px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:center;margin-bottom:20px;animation:pulse-green 2s ease-in-out infinite;}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,0.3);}50%{box-shadow:0 0 0 12px rgba(16,185,129,0);}}
+.success-icon svg{width:34px;height:34px;stroke:#10B981;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.success-title{font-family:'Sora',sans-serif;font-size:20px;font-weight:700;margin-bottom:10px;}
+.success-desc{font-size:13px;color:var(--text-muted);font-weight:600;line-height:1.6;margin-bottom:32px;}
+</style>
+</head>
+<body>
+
+<!-- ─── CONNEXION ─── -->
+<div class="phone">
+  <div class="auth-bg"></div>
+  <div class="status-bar">
+    <span>09:41</span>
+    <div class="status-icons">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 6c5.5-4 16.5-4 22 0M5 10c3.9-2.67 10.1-2.67 14 0M9 14c1.9-1.33 5.1-1.33 7 0"/></svg>
+      <svg width="20" height="12" viewBox="0 0 24 14" fill="none"><rect x="0" y="1" width="20" height="12" rx="3" stroke="white" stroke-width="1.5"/><rect x="21" y="4" width="3" height="6" rx="1.5" fill="white"/><rect x="1.5" y="2.5" width="14" height="9" rx="1.5" fill="white"/></svg>
+    </div>
+  </div>
+
+  <div class="auth-content">
+    <div class="auth-hero">
+      <div class="hero-icon">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 21L24 6L42 21V42H30V30H18V42H6V21Z" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="18" cy="18" r="3" fill="rgba(236,72,153,0.9)"/>
+          <circle cx="24" cy="14" r="4" fill="white"/>
+          <circle cx="30" cy="18" r="3" fill="rgba(6,182,212,0.9)"/>
+        </svg>
+      </div>
+      <div class="hero-title">Family<span>OS</span></div>
+      <div class="hero-sub">Votre espace famille sécurisé</div>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active">Connexion</div>
+      <div class="auth-tab">Inscription</div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Adresse email</label>
+      <div class="form-input-wrap">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <input class="form-input" type="email" placeholder="famille@email.com" value="admin@familyos.app">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Mot de passe</label>
+      <div class="form-input-wrap">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <input class="form-input" type="password" placeholder="••••••••" value="password123">
+        <div class="eye-btn">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="forgot">Mot de passe oublié ?</div>
+
+    <button class="btn-main">Se connecter</button>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <span>ou continuer avec</span>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="social-row">
+      <div class="social-btn">
+        <svg viewBox="0 0 24 24" width="18" height="18"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+        Google
+      </div>
+      <div class="social-btn">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        Apple
+      </div>
+    </div>
+
+    <div class="auth-footer">Pas encore de compte ? <a href="#">S'inscrire</a></div>
+  </div>
+</div>
+
+<!-- ─── RÉINITIALISATION MOT DE PASSE ─── -->
+<div class="phone2">
+  <div class="auth-bg" style="position:absolute;inset:0;overflow:hidden;pointer-events:none;">
+    <div style="position:absolute;top:-60px;right:-60px;width:250px;height:250px;border-radius:50%;background:radial-gradient(circle,rgba(79,111,232,0.2) 0%,transparent 70%);"></div>
+  </div>
+
+  <div class="status-bar" style="position:relative;z-index:1;">
+    <span>09:41</span>
+    <div class="status-icons">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M1 6c5.5-4 16.5-4 22 0M5 10c3.9-2.67 10.1-2.67 14 0M9 14c1.9-1.33 5.1-1.33 7 0"/></svg>
+    </div>
+  </div>
+
+  <div class="back-btn" style="position:relative;z-index:1;">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+    Retour
+  </div>
+
+  <div class="page-header" style="position:relative;z-index:1;">
+    <div class="page-header-icon">
+      <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div class="page-h1">Mot de passe<br><span>oublié ?</span></div>
+    <div class="page-desc">Entrez votre adresse email et nous vous enverrons un lien de réinitialisation.</div>
+  </div>
+
+  <div class="reset-content" style="position:relative;z-index:1;">
+    <div class="form-group" style="margin-bottom:24px;">
+      <label class="form-label" style="font-size:12px;font-weight:800;color:#8A9BC4;letter-spacing:0.5px;margin-bottom:8px;display:block;">Adresse email</label>
+      <div style="position:relative;">
+        <svg style="position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;stroke:#3A4A6A;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <input style="width:100%;background:#1A2540;border:1.5px solid rgba(255,255,255,0.06);border-radius:13px;padding:13px 14px 13px 42px;color:#F0F4FF;font-family:'Nunito',sans-serif;font-size:14px;font-weight:600;outline:none;" type="email" placeholder="famille@email.com">
+      </div>
+    </div>
+
+    <button class="btn-main" style="margin-bottom:32px;">Envoyer le lien</button>
+
+    <!-- Success message (shown after sending) -->
+    <div style="background:#1A2540;border:1px solid rgba(16,185,129,0.2);border-radius:16px;padding:20px;display:flex;gap:14px;align-items:flex-start;">
+      <div style="width:36px;height:36px;border-radius:10px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#F0F4FF;margin-bottom:4px;">Email envoyé !</div>
+        <div style="font-size:12px;color:#8A9BC4;font-weight:600;line-height:1.5;">Vérifiez votre boîte mail. Le lien expire dans 15 minutes.</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:28px;font-size:13px;color:#8A9BC4;font-weight:600;">
+      Vous vous souvenez ? <a href="#" style="color:#9B59F5;font-weight:800;text-decoration:none;">Se connecter</a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
