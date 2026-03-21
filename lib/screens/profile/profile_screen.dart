@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
+import 'package:flutter/services.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
@@ -75,17 +77,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _showInviteDialog() {
+  void _showInviteDialog() async {
+    // Generate a random 6-char alphanumeric code
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rand = Random.secure();
+    final code = 'FAM-${List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join()}';
+
+    // Save to Firestore with 24h expiry
+    final expiry = DateTime.now().add(const Duration(hours: 24));
+    await FirebaseFirestore.instance.collection('invitations').doc(code).set({
+      'code': code,
+      'createdBy': FirebaseAuth.instance.currentUser?.uid,
+      'expiresAt': Timestamp.fromDate(expiry),
+      'used': false,
+    });
+
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
         title: const Text('Inviter un membre', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: const Text('Partagez ce code pour inviter un proche :\n\nFAM-2026-X8Y9', textAlign: TextAlign.center, style: TextStyle(color: kCyan, fontSize: 18, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Partagez ce code à votre proche. Il expire dans 24h.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Nunito', color: kTextMuted, fontSize: 13)),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              decoration: BoxDecoration(color: kBg2, borderRadius: BorderRadius.circular(12)),
+              child: Text(code, style: const TextStyle(fontFamily: 'Sora', color: kCyan, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            ),
+          ],
+        ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
           TextButton(
             onPressed: () {
+              Clipboard.setData(ClipboardData(text: code));
               Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copié dans le presse-papiers')));
             },

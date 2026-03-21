@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _dobController = TextEditingController();
   final _sexController = TextEditingController();
   final _relationController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
   final _authService = AuthService();
 
   Future<void> _handleAuth(bool isLogin) async {
@@ -39,6 +40,33 @@ class _LoginScreenState extends State<LoginScreen>
         const SnackBar(content: Text('Veuillez remplir tous les champs')),
       );
       return;
+    }
+
+    // Validate invite code for new registrations
+    if (!isLogin) {
+      final code = _inviteCodeController.text.trim().toUpperCase();
+      final isFamilyCreator = _familyController.text.trim().isNotEmpty;
+      if (!isFamilyCreator) {
+        if (code.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Un code d\'invitation est requis pour rejoindre la famille')));
+          return;
+        }
+        final inviteDoc = await FirebaseFirestore.instance.collection('invitations').doc(code).get();
+        if (!inviteDoc.exists || (inviteDoc.data()?['used'] == true)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code d\'invitation invalide ou déjà utilisé')));
+          return;
+        }
+        final expiry = (inviteDoc.data()?['expiresAt'] as Timestamp?)?.toDate();
+        if (expiry != null && DateTime.now().isAfter(expiry)) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce code d\'invitation a expiré')));
+          return;
+        }
+        // Mark as used
+        await FirebaseFirestore.instance.collection('invitations').doc(code).update({'used': true});
+      }
     }
 
     setState(() => _isLoading = true);
@@ -62,6 +90,7 @@ class _LoginScreenState extends State<LoginScreen>
             'initial': fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
             'colorIndex': DateTime.now().microsecond % 5,
             'isOnline': true,
+            'role': _familyController.text.trim().isNotEmpty ? 'admin' : 'member',
           }, SetOptions(merge: true));
 
           final familyName = _familyController.text.trim();
@@ -82,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen>
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Une erreur inattendue est survenue')),
+        const SnackBar(content: Text('Une erreur inattendue est survenue')),
       );
       setState(() => _isLoading = false);
     }
@@ -112,6 +141,7 @@ class _LoginScreenState extends State<LoginScreen>
     _dobController.dispose();
     _sexController.dispose();
     _relationController.dispose();
+    _inviteCodeController.dispose();
     super.dispose();
   }
 
@@ -153,6 +183,7 @@ class _LoginScreenState extends State<LoginScreen>
           // Content
           SafeArea(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
               child: Column(
                 children: [
@@ -356,35 +387,42 @@ class _LoginScreenState extends State<LoginScreen>
           controller: _familyController,
           placeholder: 'Ex: Famille Dubois',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _FormField(
           label: 'Nom complet',
           icon: Icons.person_outline,
           controller: _fnameController,
-          placeholder: 'Ex: Jean Dubois',
+          placeholder: 'Ex: Kouadio Koffi',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _FormField(
           label: 'Sexe',
           icon: Icons.transgender_outlined,
           controller: _sexController,
           placeholder: 'Homme / Femme',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _FormField(
           label: 'Date de naissance',
           icon: Icons.calendar_today_outlined,
           controller: _dobController,
           placeholder: 'JJ/MM/AAAA',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _FormField(
           label: 'Parenté',
           icon: Icons.family_restroom_outlined,
           controller: _relationController,
           placeholder: 'Ex: Père, Mère, Enfant...',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
+        _FormField(
+          label: 'Code d\'invitation (si Membre)',
+          icon: Icons.key_outlined,
+          controller: _inviteCodeController,
+          placeholder: 'FAM-XXXXXX',
+        ),
+        const SizedBox(height: 10),
         _FormField(
           label: 'Adresse email',
           icon: Icons.mail_outline,
@@ -392,14 +430,14 @@ class _LoginScreenState extends State<LoginScreen>
           keyboardType: TextInputType.emailAddress,
           placeholder: 'famille@email.com',
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 10),
         _PasswordField(
           controller: _passwordController,
           obscure: _obscurePassword,
           onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
           label: 'Créer un mot de passe',
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         _isLoading
             ? const Center(child: CircularProgressIndicator(color: kPurple))
             : GradientButton(

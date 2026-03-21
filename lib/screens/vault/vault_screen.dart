@@ -4,6 +4,7 @@ import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
+import '../../core/encryption_service.dart';
 
 class VaultScreen extends StatefulWidget {
   const VaultScreen({super.key});
@@ -55,9 +56,10 @@ class _VaultScreenState extends State<VaultScreen> {
           TextButton(
             onPressed: () {
               if (titleCtrl.text.isNotEmpty && secretCtrl.text.isNotEmpty) {
+                final encryptedSecret = EncryptionService.encrypt(secretCtrl.text.trim());
                 _db.addVaultSecret({
                   'title': titleCtrl.text.trim(),
-                  'secret': secretCtrl.text.trim(),
+                  'secret': encryptedSecret,
                   'type': 'password',
                 });
                 Navigator.pop(ctx);
@@ -71,6 +73,8 @@ class _VaultScreenState extends State<VaultScreen> {
   }
 
   void _showSecretDetailsDialog(Map<String, dynamic> data) {
+    final rawSecret = data['secret'] ?? 'Contenu vide';
+    final plainSecret = EncryptionService.decrypt(rawSecret);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -80,7 +84,7 @@ class _VaultScreenState extends State<VaultScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: kBg2, borderRadius: BorderRadius.circular(12)),
           child: SelectableText(
-            data['secret'] ?? 'Contenu vide',
+            plainSecret,
             style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, fontWeight: FontWeight.w700, color: kCyan, letterSpacing: 1),
           ),
         ),

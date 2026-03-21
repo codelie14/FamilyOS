@@ -1,4 +1,4 @@
-import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 import '../../core/theme.dart';
 import '../../widgets/common_widgets.dart';
 import '../../services/firestore_service.dart';
+import '../../services/location_service.dart';
 
 class LocationScreen extends StatefulWidget {
   const LocationScreen({super.key});
@@ -17,7 +18,23 @@ class LocationScreen extends StatefulWidget {
 class _LocationScreenState extends State<LocationScreen> {
   final FirestoreService _db = FirestoreService();
   final MapController _mapController = MapController();
-  final LatLng _initialCenter = const LatLng(48.8566, 2.3522); // Paris by default
+  LatLng _myPosition = const LatLng(48.8566, 2.3522); // Paris fallback
+
+  @override
+  void initState() {
+    super.initState();
+    _initLocation();
+  }
+
+  Future<void> _initLocation() async {
+    final position = await LocationService.updateMyLocation();
+    if (position != null && mounted) {
+      setState(() {
+        _myPosition = LatLng(position.latitude, position.longitude);
+      });
+      _mapController.move(_myPosition, 13.0);
+    }
+  }
 
   LinearGradient _getGrad(int index) {
     const list = [
@@ -28,16 +45,6 @@ class _LocationScreenState extends State<LocationScreen> {
       LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
     ];
     return list[index % list.length];
-  }
-
-  String _getMockLocation(int index) {
-    const locs = ['À la maison', 'Au travail', 'École primaire', 'En déplacement', 'Salle de sport'];
-    return locs[index % locs.length];
-  }
-
-  String _getMockDistance(int index) {
-    const dists = ['0 km', '12 km', '2 km', '150 km', '5 km'];
-    return dists[index % dists.length];
   }
 
   @override
@@ -90,7 +97,7 @@ class _LocationScreenState extends State<LocationScreen> {
                   return FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: _initialCenter,
+                      initialCenter: _myPosition,
                       initialZoom: 13.0,
                     ),
                     children: [
@@ -101,7 +108,7 @@ class _LocationScreenState extends State<LocationScreen> {
                       MarkerLayer(
                         markers: [
                           Marker(
-                            point: _initialCenter,
+                            point: _myPosition,
                             width: 60,
                             height: 60,
                             child: Container(
@@ -111,21 +118,19 @@ class _LocationScreenState extends State<LocationScreen> {
                                 border: Border.all(color: Colors.white.withAlpha(40), width: 3),
                                 boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 15, spreadRadius: 2)],
                               ),
-                              child: const Icon(Icons.home_rounded, color: Colors.white, size: 22),
+                              child: const Icon(Icons.my_location, color: Colors.white, size: 22),
                             ),
                           ),
                           if (snapshot.hasData)
-                            ...List.generate(docs.length, (i) {
-                              final data = docs[i].data() as Map<String, dynamic>;
+                            ...docs.where((doc) {
+                              final d = doc.data() as Map<String, dynamic>;
+                              return d['lat'] != null && d['lng'] != null;
+                            }).map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
                               final initial = data['initial'] ?? '?';
-                              final grad = _getGrad(data['colorIndex'] ?? i);
-                              
-                              // Pseudo-random position around Paris for mockup
-                              final angle = (i * 2.0 * pi / docs.length);
-                              final distance = 0.02 + (i * 0.01);
-                              final lat = _initialCenter.latitude + cos(angle) * distance;
-                              final lng = _initialCenter.longitude + sin(angle) * distance;
-                              
+                              final grad = _getGrad(data['colorIndex'] ?? 0);
+                              final lat = (data['lat'] as num).toDouble();
+                              final lng = (data['lng'] as num).toDouble();
                               return Marker(
                                 point: LatLng(lat, lng),
                                 width: 40,
@@ -203,47 +208,56 @@ class _LocationScreenState extends State<LocationScreen> {
                             final name = data['name'] ?? 'Inconnu';
                             final initial = data['initial'] ?? '?';
                             final grad = _getGrad(data['colorIndex'] ?? i);
-                            
-                            final mockLoc = _getMockLocation(i);
-                            final mockDist = _getMockDistance(i);
+                            final hasLocation = data['lat'] != null && data['lng'] != null;
+                            final locationText = hasLocation
+                              ? 'Position connue'
+                              : 'Position inconnue';
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: kBg2,
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.white.withAlpha(10), width: 1),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 46,
-                                      height: 46,
-                                      decoration: BoxDecoration(gradient: grad, borderRadius: BorderRadius.circular(14)),
-                                      alignment: Alignment.center,
-                                      child: Text(initial, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.location_on, color: kTextDim, size: 12),
-                                              const SizedBox(width: 4),
-                                              Text('$mockLoc • $mockDist', style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
-                                            ],
-                                          ),
-                                        ],
+                              child: GestureDetector(
+                                onTap: hasLocation ? () {
+                                  final lat = (data['lat'] as num).toDouble();
+                                  final lng = (data['lng'] as num).toDouble();
+                                  _mapController.move(LatLng(lat, lng), 15);
+                                } : null,
+                                child: Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: kBg2,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: Colors.white.withAlpha(10), width: 1),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 46,
+                                        height: 46,
+                                        decoration: BoxDecoration(gradient: grad, borderRadius: BorderRadius.circular(14)),
+                                        alignment: Alignment.center,
+                                        child: Text(initial, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
                                       ),
-                                    ),
-                                    AppIconButton(icon: const Icon(Icons.navigation_outlined, color: kCyan, size: 18)),
-                                  ],
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(hasLocation ? Icons.location_on : Icons.location_off, color: hasLocation ? kGreen : kTextDim, size: 12),
+                                                const SizedBox(width: 4),
+                                                Text(locationText, style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (hasLocation)
+                                        AppIconButton(icon: const Icon(Icons.navigation_outlined, color: kCyan, size: 18)),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );
