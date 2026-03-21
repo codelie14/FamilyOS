@@ -23,6 +23,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _notifications = true;
   bool _locationSharing = false;
 
+  void _loadPreferences() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    
+    final doc = await FirebaseFirestore.instance.collection('members').doc(uid).get();
+    if (doc.exists && mounted) {
+      final data = doc.data() as Map<String, dynamic>;
+      setState(() {
+        _darkMode = data['darkMode'] ?? true;
+        _notifications = data['notifications'] ?? true;
+        _locationSharing = data['locationSharing'] ?? false;
+      });
+    }
+  }
+
+  Future<void> _updatePref(String key, bool value) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await db.updateMemberPreferences(uid, {key: value});
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferences();
+  }
+
   void _showEditProfileDialog(User user) {
     final nameCtrl = TextEditingController(text: user.displayName);
     showDialog(
@@ -37,11 +65,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               if (nameCtrl.text.isNotEmpty) {
                 await user.updateDisplayName(nameCtrl.text.trim());
-                if (mounted) {
-                  setState(() {});
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil mis à jour')));
-                }
+                if (!mounted) return;
+                setState(() {});
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil mis à jour')));
               }
             },
             child: const Text('Enregistrer', style: TextStyle(color: kPurple)),
@@ -64,10 +91,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               if (user.email != null) {
                 await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email envoyé à ${user.email}')));
-                }
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email envoyé à ${user.email}')));
               }
             },
             child: const Text('Envoyer', style: TextStyle(color: kPurple)),
@@ -153,10 +179,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               if (nameCtrl.text.isNotEmpty) {
                 await FirebaseFirestore.instance.collection('family_info').doc('details').set({'familyName': nameCtrl.text.trim()}, SetOptions(merge: true));
-                if (mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nom de famille mis à jour')));
-                }
+                if (!mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nom de famille mis à jour')));
               }
             },
             child: const Text('Enregistrer', style: TextStyle(color: kPurple)),
@@ -271,9 +296,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   [Icons.lock_outline, kOrange, 'Mot de passe', 'Dernière modification récente', 'arrow', () => _showPasswordResetDialog(user!)],
                 ];
                 final prefs = [
-                  [Icons.dark_mode_outlined, kPurple, 'Mode sombre', _darkMode ? 'Activé' : 'Désactivé', _darkMode ? 'toggle_on' : 'toggle_off', () => setState(() => _darkMode = !_darkMode)],
-                  [Icons.notifications_outlined, kPink, 'Notifications', _notifications ? 'Toutes activées' : 'Désactivées', _notifications ? 'toggle_on' : 'toggle_off', () => setState(() => _notifications = !_notifications)],
-                  [Icons.location_on_outlined, kGreen, 'Partage de position', _locationSharing ? 'Activé' : 'Désactivé', _locationSharing ? 'toggle_on' : 'toggle_off', () => setState(() => _locationSharing = !_locationSharing)],
+                  [Icons.dark_mode_outlined, kPurple, 'Mode sombre', _darkMode ? 'Activé' : 'Désactivé', _darkMode ? 'toggle_on' : 'toggle_off', () {
+                    setState(() => _darkMode = !_darkMode);
+                    _updatePref('darkMode', _darkMode);
+                  }],
+                  [Icons.notifications_outlined, kPink, 'Notifications', _notifications ? 'Toutes activées' : 'Désactivées', _notifications ? 'toggle_on' : 'toggle_off', () {
+                    setState(() => _notifications = !_notifications);
+                    _updatePref('notifications', _notifications);
+                  }],
+                  [Icons.location_on_outlined, kGreen, 'Partage de position', _locationSharing ? 'Activé' : 'Désactivé', _locationSharing ? 'toggle_on' : 'toggle_off', () {
+                    setState(() => _locationSharing = !_locationSharing);
+                    _updatePref('locationSharing', _locationSharing);
+                  }],
                 ];
 
                 return ListView(

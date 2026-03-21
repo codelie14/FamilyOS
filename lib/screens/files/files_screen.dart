@@ -9,6 +9,7 @@ import '../../widgets/common_widgets.dart';
 import '../../services/firestore_service.dart';
 import '../../services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
@@ -56,16 +57,14 @@ class _FilesScreenState extends State<FilesScreen> {
           'type': isImage ? 'image' : (isVideo ? 'video' : 'doc'),
         });
         
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fichier importé avec succès')));
-        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fichier importé avec succès')));
       } else {
         throw Exception('Cloudinary upload return null URL');
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }
@@ -204,7 +203,7 @@ class _FilesScreenState extends State<FilesScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: GestureDetector(
-                            onTap: () => _showFileOptions(context, doc.id, title, size, timeStr, uploader, icon, color),
+                            onTap: () => _showFileOptions(context, doc.id, title, size, timeStr, uploader, icon, color, data['url'] as String?),
                             child: Container(
                               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                               decoration: BoxDecoration(
@@ -255,7 +254,7 @@ class _FilesScreenState extends State<FilesScreen> {
     );
   }
 
-  void _showFileOptions(BuildContext context, String fileId, String title, String size, String timeStr, String uploader, IconData icon, Color color) {
+  void _showFileOptions(BuildContext context, String fileId, String title, String size, String timeStr, String uploader, IconData icon, Color color, String? url) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -293,7 +292,18 @@ class _FilesScreenState extends State<FilesScreen> {
             ListTile(
               leading: const Icon(Icons.remove_red_eye_outlined, color: kText),
               title: const Text('Ouvrir / Visualiser', style: TextStyle(fontFamily: 'Nunito', color: kText, fontWeight: FontWeight.w600)),
-              onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ouverture de $title...'))); },
+              onTap: () async { 
+                Navigator.pop(ctx); 
+                if (url != null) {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir le fichier.')));
+                  }
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.share_outlined, color: kText),
@@ -306,7 +316,8 @@ class _FilesScreenState extends State<FilesScreen> {
               onTap: () async {
                 Navigator.pop(ctx);
                 await _db.deleteFile(fileId);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fichier supprimé')));
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fichier supprimé')));
               },
             ),
             const SizedBox(height: 10),

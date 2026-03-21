@@ -17,37 +17,121 @@ class _TasksScreenState extends State<TasksScreen> {
   int _filter = 0;
   final filters = ['Toutes', 'En cours', 'Terminées'];
 
-  void _showAddTaskDialog(BuildContext context) {
-    final titleCtrl = TextEditingController();
+  void _showTaskDialog(BuildContext context, {String? docId, Map<String, dynamic>? initialData}) {
+    final isEdit = docId != null;
+    final titleCtrl = TextEditingController(text: initialData?['title'] ?? '');
+    String priority = initialData?['priority'] ?? 'med';
+    String assignee = initialData?['assignee'] ?? 'A';
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: const Text('Nouvelle tâche', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: TextField(
-          controller: titleCtrl,
-          style: const TextStyle(color: kText),
-          decoration: const InputDecoration(hintText: 'Titre...', hintStyle: TextStyle(color: kTextMuted)),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
-          TextButton(
-            onPressed: () {
-              if (titleCtrl.text.isNotEmpty) {
-                _db.addTask({
-                  'title': titleCtrl.text.trim(),
-                  'done': false,
-                  'priority': 'med',
-                  'assignee': 'A',
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Ajouter', style: TextStyle(color: kPurple)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setStateDialog) => AlertDialog(
+          backgroundColor: kSurface,
+          title: Text(isEdit ? 'Modifier la tâche' : 'Nouvelle tâche', style: const TextStyle(fontFamily: 'Sora', color: kText)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                style: const TextStyle(color: kText),
+                decoration: const InputDecoration(hintText: 'Titre de la tâche...', hintStyle: TextStyle(color: kTextMuted)),
+              ),
+              const SizedBox(height: 16),
+              const Text('Priorité', style: TextStyle(fontFamily: 'Nunito', fontSize: 12, color: kTextMuted)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _priorityBtn('low', priority, kGreen, () => setStateDialog(() => priority = 'low')),
+                  _priorityBtn('med', priority, kOrange, () => setStateDialog(() => priority = 'med')),
+                  _priorityBtn('high', priority, kRed, () => setStateDialog(() => priority = 'high')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Assigné à (initiale)', style: TextStyle(fontFamily: 'Nunito', fontSize: 12, color: kTextMuted)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: ['A', 'M', 'L', 'S'].map((i) => GestureDetector(
+                  onTap: () => setStateDialog(() => assignee = i),
+                  child: Container(
+                    width: 32, height: 32,
+                    decoration: BoxDecoration(
+                      color: assignee == i ? kPurple : kSurface2,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: assignee == i ? Colors.white : Colors.transparent),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(i, style: TextStyle(color: assignee == i ? Colors.white : kText)),
+                  ),
+                )).toList(),
+              ),
+            ],
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+            TextButton(
+              onPressed: () {
+                if (titleCtrl.text.isNotEmpty) {
+                  final data = {
+                    'title': titleCtrl.text.trim(),
+                    'priority': priority,
+                    'assignee': assignee,
+                  };
+                  if (initialData != null && titleCtrl.text == initialData['title'] && priority == initialData['priority'] && assignee == initialData['assignee']) {
+                    Navigator.pop(ctx);
+                    return;
+                  }
+                  if (isEdit) {
+                    _db.updateTask(docId, data);
+                  } else {
+                    final newData = Map<String, dynamic>.from(data);
+                    newData['done'] = false;
+                    _db.addTask(newData);
+                  }
+                  Navigator.pop(ctx);
+                }
+              },
+              child: Text(isEdit ? 'Enregistrer' : 'Ajouter', style: const TextStyle(color: kPurple)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _priorityBtn(String value, String current, Color color, VoidCallback onTap) {
+    final isSelected = current == value;
+    final labels = {'low': 'Normale', 'med': 'Moyenne', 'high': 'Urgente'};
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withAlpha(51) : kSurface2,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? color : Colors.transparent),
+        ),
+        child: Text(labels[value]!, style: TextStyle(color: isSelected ? color : kTextMuted, fontSize: 12)),
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(String docId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: kSurface,
+        title: const Text('Supprimer la tâche ?', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer', style: TextStyle(color: kRed))),
         ],
       ),
     );
+    if (confirm == true) await _db.deleteTask(docId);
   }
 
   @override
@@ -56,10 +140,7 @@ class _TasksScreenState extends State<TasksScreen> {
       backgroundColor: kBg2,
       body: Column(
         children: [
-          const SafeArea(
-            bottom: false,
-            child: SizedBox.shrink(),
-          ),
+          const SafeArea(bottom: false, child: SizedBox.shrink()),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
             child: Row(
@@ -67,7 +148,7 @@ class _TasksScreenState extends State<TasksScreen> {
               children: [
                 const Text('Tâches', style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
                 GestureDetector(
-                  onTap: () => _showAddTaskDialog(context),
+                  onTap: () => _showTaskDialog(context),
                   child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18))
                 ),
               ],
@@ -87,14 +168,14 @@ class _TasksScreenState extends State<TasksScreen> {
                     d.id,
                     data['title'] ?? 'Sans nom',
                     data['date'],
-                    data['assignee'] ?? '?',
+                    data['assignee'] ?? 'A',
                     _getGrad(data['assignee']),
                     data['priority'] == 'high' ? _Priority.high : (data['priority'] == 'low' ? _Priority.low : _Priority.med),
-                    data['done'] ?? false,
+                    data['done'] == true || data['done'] == 'true',
+                    data,
                   );
                 }).toList();
 
-                // Apply filter
                 var filtered = tasks;
                 if (_filter == 1) filtered = tasks.where((t) => !t.done).toList();
                 if (_filter == 2) filtered = tasks.where((t) => t.done).toList();
@@ -107,24 +188,17 @@ class _TasksScreenState extends State<TasksScreen> {
                 return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    // Progress card
                     SurfaceCard(
                       padding: const EdgeInsets.all(18),
                       radius: 18,
                       child: Row(
                         children: [
                           SizedBox(
-                            width: 60,
-                            height: 60,
+                            width: 60, height: 60,
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                CircularProgressIndicator(
-                                  value: progress,
-                                  strokeWidth: 5,
-                                  backgroundColor: kSurface2,
-                                  valueColor: const AlwaysStoppedAnimation<Color>(kPurple),
-                                ),
+                                CircularProgressIndicator(value: progress, strokeWidth: 5, backgroundColor: kSurface2, valueColor: const AlwaysStoppedAnimation<Color>(kPurple)),
                                 Text('$percent%', style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w800, color: kText)),
                               ],
                             ),
@@ -145,7 +219,6 @@ class _TasksScreenState extends State<TasksScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Filter tabs
                     SizedBox(
                       height: 38,
                       child: ListView.separated(
@@ -158,18 +231,8 @@ class _TasksScreenState extends State<TasksScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
                             decoration: i == _filter
                                 ? BoxDecoration(gradient: kGradMain, borderRadius: BorderRadius.circular(20))
-                                : BoxDecoration(
-                                    color: kSurface,
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: Colors.white.withAlpha(12), width: 1),
-                                  ),
-                            child: Text(filters[i],
-                                style: TextStyle(
-                                  fontFamily: 'Nunito',
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: i == _filter ? Colors.white : kTextMuted,
-                                )),
+                                : BoxDecoration(color: kSurface, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withAlpha(12), width: 1)),
+                            child: Text(filters[i], style: TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w700, color: i == _filter ? Colors.white : kTextMuted)),
                           ),
                         ),
                       ),
@@ -177,12 +240,12 @@ class _TasksScreenState extends State<TasksScreen> {
                     const SizedBox(height: 16),
                     if (filtered.where((t) => !t.done).isNotEmpty) ...[
                       const SectionHeader(title: 'En cours'),
-                      ...filtered.where((t) => !t.done).map((t) => _taskTile(t)),
+                      ...filtered.where((t) => !t.done).map((t) => _taskTileBuilder(t)),
                     ],
                     const SizedBox(height: 8),
                     if (filtered.where((t) => t.done).isNotEmpty) ...[
                       const SectionHeader(title: 'Terminées'),
-                      ...filtered.where((t) => t.done).map((t) => Opacity(opacity: 0.65, child: _taskTile(t))),
+                      ...filtered.where((t) => t.done).map((t) => Opacity(opacity: 0.65, child: _taskTileBuilder(t))),
                     ],
                     const SizedBox(height: 20),
                   ],
@@ -196,85 +259,82 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _taskTile(_Task t) {
-    final (color, label) = switch (t.priority) {
-      _Priority.high => (kRed, 'Urgent'),
-      _Priority.med => (kOrange, 'Moyen'),
-      _Priority.low => (kGreen, 'Normal'),
-    };
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: SurfaceCard(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () => _db.toggleTaskStatus(t.id, !t.done),
-              child: Container(
-                width: 22,
-                height: 22,
-                margin: const EdgeInsets.only(top: 1),
-                decoration: t.done
-                    ? BoxDecoration(gradient: kGradGreen, borderRadius: BorderRadius.circular(7))
-                    : BoxDecoration(
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: Colors.white.withAlpha(38), width: 2),
-                      ),
-                alignment: Alignment.center,
-                child: t.done ? const Icon(Icons.check, color: Colors.white, size: 12) : null,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    t.title,
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: t.done ? kTextDim : kText,
-                      decoration: t.done ? TextDecoration.lineThrough : null,
-                    ),
+  Widget _taskTileBuilder(_Task t) {
+    return Dismissible(
+      key: Key(t.id),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(color: kRed.withAlpha(51), borderRadius: BorderRadius.circular(14)),
+        child: const Icon(Icons.delete_outline, color: kRed),
+      ),
+      confirmDismiss: (_) async {
+        await _confirmDelete(t.id);
+        return false; // manual deletion in confirm dialog
+      },
+      child: GestureDetector(
+        onLongPress: () => _showTaskDialog(context, docId: t.id, initialData: t.rawData),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SurfaceCard(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () => _db.toggleTaskStatus(t.id, !t.done),
+                  child: Container(
+                    width: 22, height: 22,
+                    margin: const EdgeInsets.only(top: 1),
+                    decoration: t.done
+                        ? BoxDecoration(gradient: kGradGreen, borderRadius: BorderRadius.circular(7))
+                        : BoxDecoration(borderRadius: BorderRadius.circular(7), border: Border.all(color: Colors.white.withAlpha(38), width: 2)),
+                    alignment: Alignment.center,
+                    child: t.done ? const Icon(Icons.check, color: Colors.white, size: 12) : null,
                   ),
-                  const SizedBox(height: 4),
-                  Wrap(
-                    spacing: 8,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (t.date != null)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.calendar_today_outlined, size: 11, color: kTextDim),
-                            const SizedBox(width: 4),
-                            Text(t.date!, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
-                          ],
-                        ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Text(
+                        t.title,
+                        style: TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: t.done ? kTextDim : kText, decoration: t.done ? TextDecoration.lineThrough : null),
+                      ),
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 8,
                         children: [
+                          if (t.date != null)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.calendar_today_outlined, size: 11, color: kTextDim),
+                                const SizedBox(width: 4),
+                                Text(t.date!, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+                              ],
+                            ),
                           Container(
-                            width: 18,
-                            height: 18,
+                            width: 18, height: 18,
                             decoration: BoxDecoration(gradient: t.assigneeGrad, borderRadius: BorderRadius.circular(5)),
                             alignment: Alignment.center,
                             child: Text(t.assignee, style: const TextStyle(fontFamily: 'Nunito', fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white)),
                           ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: _getPriorityColor(t.priority).withAlpha(38), borderRadius: BorderRadius.circular(20)),
+                            child: Text(_getPriorityLabel(t.priority), style: TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w800, color: _getPriorityColor(t.priority))),
+                          ),
                         ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(20)),
-                        child: Text(label, style: TextStyle(fontFamily: 'Nunito', fontSize: 10, fontWeight: FontWeight.w800, color: color)),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -282,6 +342,9 @@ class _TasksScreenState extends State<TasksScreen> {
 }
 
 enum _Priority { high, med, low }
+
+Color _getPriorityColor(_Priority p) => p == _Priority.high ? kRed : (p == _Priority.low ? kGreen : kOrange);
+String _getPriorityLabel(_Priority p) => p == _Priority.high ? 'Urgente' : (p == _Priority.low ? 'Normale' : 'Moyenne');
 
 LinearGradient _getGrad(String? assignee) {
   if (assignee == 'M') return kGradPink;
@@ -298,5 +361,6 @@ class _Task {
   final LinearGradient assigneeGrad;
   final _Priority priority;
   final bool done;
-  _Task(this.id, this.title, this.date, this.assignee, this.assigneeGrad, this.priority, this.done);
+  final Map<String, dynamic> rawData;
+  _Task(this.id, this.title, this.date, this.assignee, this.assigneeGrad, this.priority, this.done, this.rawData);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme.dart';
 import '../../widgets/gradient_widgets.dart';
 import '../../widgets/common_widgets.dart';
@@ -12,7 +13,23 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _sent = false;
+  bool _isLoading = false;
   final _emailController = TextEditingController();
+
+  Future<void> _sendReset() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) return;
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) setState(() { _sent = true; _isLoading = false; });
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: ${e.message}')));
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -163,10 +180,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ],
                         ),
                         const SizedBox(height: 24),
-                        GradientButton(
-                          label: 'Envoyer le lien',
-                          onTap: () => setState(() => _sent = true),
-                        ),
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator(color: kPurple))
+                            : GradientButton(
+                                label: 'Envoyer le lien',
+                                onTap: _sendReset,
+                              ),
                         // Success message
                         if (_sent) ...[
                           const SizedBox(height: 20),

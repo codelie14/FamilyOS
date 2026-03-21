@@ -34,7 +34,6 @@ class CloudinaryService {
 
       return response?.data?.secureUrl;
     } catch (e) {
-      print('Cloudinary upload error: $e');
       return null;
     }
   }
