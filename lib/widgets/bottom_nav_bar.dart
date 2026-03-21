@@ -79,9 +79,11 @@ class AppBottomNavBar extends StatelessWidget {
 /// Global helper to navigate gracefully
 void handleNavBarTap(BuildContext context, int newIndex, int currentIndex) {
   if (newIndex == currentIndex) return;
-  // Handle center FAB (index 2) usually as action, not route, 
-  // but if needed we can open a modal. For now just generic print or ignore.
-  if (newIndex == 2) return;
+  // Handle center FAB (index 2) as action (open modal)
+  if (newIndex == 2) {
+    _showAddMenu(context);
+    return;
+  }
   
   String routeName;
   switch (newIndex) {
@@ -92,6 +94,59 @@ void handleNavBarTap(BuildContext context, int newIndex, int currentIndex) {
     default: return;
   }
   Navigator.pushReplacementNamed(context, routeName);
+}
+
+void _showAddMenu(BuildContext context) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: kBg,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(20, 30, 20, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Nouveau', style: TextStyle(fontFamily: 'Sora', fontSize: 20, fontWeight: FontWeight.w700, color: kText)),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _addMenuOption(context, Icons.task_alt, 'Tâche', kPink, '/tasks'),
+              _addMenuOption(context, Icons.event, 'Événement', kOrange, '/calendar'),
+              _addMenuOption(context, Icons.note_add_outlined, 'Note', kBlue, '/notes'),
+              _addMenuOption(context, Icons.photo_camera_back, 'Photo', kGreen, '/gallery'),
+            ],
+          )
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _addMenuOption(BuildContext context, IconData icon, String label, Color color, String route) {
+  return GestureDetector(
+    onTap: () {
+      Navigator.pop(context);
+      Navigator.pushNamed(context, route);
+    },
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: color.withAlpha(38),
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withAlpha(76), width: 1.5),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kText)),
+      ],
+    ),
+  );
 }
 
 class _NavItem extends StatelessWidget {

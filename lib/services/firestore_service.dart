@@ -62,11 +62,23 @@ class FirestoreService {
     return _db.collection('family_chat').orderBy('timestamp', descending: true).snapshots();
   }
 
-  Future<void> sendChatMessage({required String senderName, String? text, String? imageUrl}) async {
+  Future<void> sendChatMessage({
+    required String senderName, 
+    String? text, 
+    String? imageUrl,
+    String? audioUrl,
+    String? videoUrl,
+    String type = 'text',
+    Map<String, dynamic>? replyTo,
+  }) async {
     await _db.collection('family_chat').add({
       'senderName': senderName,
       'text': text,
       'imageUrl': imageUrl,
+      'audioUrl': audioUrl,
+      'videoUrl': videoUrl,
+      'type': type,
+      'replyTo': replyTo,
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
@@ -179,17 +191,35 @@ class FirestoreService {
     return _db.collection('direct_chats').doc(dmId).collection('messages').orderBy('timestamp', descending: true).snapshots();
   }
 
-  Future<void> sendDirectMessage({required String dmId, required String senderName, String? text, String? imageUrl}) async {
+  Future<void> sendDirectMessage({
+    required String dmId, 
+    required String senderName, 
+    String? text, 
+    String? imageUrl,
+    String? audioUrl,
+    String? videoUrl,
+    String type = 'text',
+    Map<String, dynamic>? replyTo,
+  }) async {
     await _db.collection('direct_chats').doc(dmId).collection('messages').add({
       'senderName': senderName,
       'text': text,
       'imageUrl': imageUrl,
+      'audioUrl': audioUrl,
+      'videoUrl': videoUrl,
+      'type': type,
+      'replyTo': replyTo,
       'timestamp': FieldValue.serverTimestamp(),
     });
     
+    String previewText = text ?? '';
+    if (type == 'image') previewText = '📷 Image jointe';
+    if (type == 'audio') previewText = '🎤 Note vocale';
+    if (type == 'video') previewText = '📹 Vidéo jointe';
+
     await _db.collection('direct_chats').doc(dmId).update({
       'lastTime': FieldValue.serverTimestamp(),
-      'preview': text ?? 'Image jointe',
+      'preview': previewText,
     });
   }
 

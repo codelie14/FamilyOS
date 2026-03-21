@@ -10,6 +10,7 @@ import '../../services/firestore_service.dart';
 import '../../services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 class FilesScreen extends StatefulWidget {
   const FilesScreen({super.key});
@@ -102,150 +103,166 @@ class _FilesScreenState extends State<FilesScreen> {
             ),
           ),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              children: [
-                // Storage bar
-                SurfaceCard(
-                  padding: const EdgeInsets.all(16),
-                  radius: 16,
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text('Stockage utilisé', style: TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                          Text('2.9 Go / 5 Go', style: TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w700, color: kTextMuted)),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: 0.58,
-                          minHeight: 6,
-                          backgroundColor: kSurface2,
-                          valueColor: const AlwaysStoppedAnimation<Color>(kPurple),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          _storageType('Images', kPurple),
-                          const SizedBox(width: 14),
-                          _storageType('Vidéos', kCyan),
-                          const SizedBox(width: 14),
-                          _storageType('Docs', kPink),
-                          const SizedBox(width: 14),
-                          _storageType('Autres', kOrange),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Dossiers'),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 10,
-                  crossAxisSpacing: 10,
-                  childAspectRatio: 1.3,
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _db.getFilesStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: kPurple));
+                }
+                var docs = snapshot.data?.docs ?? [];
+                
+                // Calcul du stockage utilisé
+                double totalKb = docs.fold(0.0, (sum, doc) {
+                  final s = (doc.data() as Map<String, dynamic>)['size'] as String?;
+                  if (s == null) return sum;
+                  if (s.contains('MB')) {
+                    return sum + (double.tryParse(s.replaceAll(' MB', '').trim()) ?? 0) * 1024;
+                  } else {
+                    return sum + (double.tryParse(s.replaceAll(' KB', '').trim()) ?? 0);
+                  }
+                });
+                double totalGb = totalKb / (1024 * 1024);
+                String storageText = '${totalGb.toStringAsFixed(2)} Go / 5 Go';
+                double percent = (totalGb / 5).clamp(0.0, 1.0);
+
+                var filteredDocs = docs;
+                if (_selectedFolder != 'Tous') {
+                  filteredDocs = docs.where((doc) {
+                    final type = (doc.data() as Map<String, dynamic>)['type'] ?? 'doc';
+                    if (_selectedFolder == 'vault') return type == 'vault';
+                    return type == _selectedFolder;
+                  }).toList();
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    _folderCard(context, 'Images', 'image', 'Fichiers médias', Icons.photo_library_outlined, kPurple),
-                    _folderCard(context, 'Vidéos', 'video', 'Souvenirs en vidéo', Icons.videocam_outlined, kPink),
-                    _folderCard(context, 'Documents', 'doc', 'Contrats & docs', Icons.insert_drive_file_outlined, kCyan),
-                    _folderCard(context, 'Coffre', 'vault', 'Accès sécurisé', Icons.lock_outline, kOrange),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SectionHeader(
-                  title: _selectedFolder == 'Tous' ? 'Récents' : 'Fichiers - ${_selectedFolder.toUpperCase()}', 
-                  action: _selectedFolder == 'Tous' ? 'Tout voir' : 'Annuler',
-                  onActionTap: () => setState(() => _selectedFolder = 'Tous'),
-                ),
-                StreamBuilder<QuerySnapshot>(
-                  stream: _db.getFilesStream(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator(color: kPurple));
-                    }
-                    var docs = snapshot.data?.docs ?? [];
-
-                    if (_selectedFolder != 'Tous') {
-                      docs = docs.where((doc) {
-                        final type = (doc.data() as Map<String, dynamic>)['type'] ?? 'doc';
-                        return type == _selectedFolder;
-                      }).toList();
-                    }
-
-                    if (docs.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(_selectedFolder == 'Tous' ? 'Aucun fichier' : 'Aucun fichier dans ce dossier', style: const TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
-                      );
-                    }
-                    return Column(
-                      children: docs.map((doc) {
-                        final data = doc.data() as Map<String, dynamic>;
-                        final title = data['name'] ?? 'Inconnu';
-                        final size = data['size'] ?? '0 KB';
-                        final type = data['type'] ?? 'doc';
-                        final uploader = data['uploader'] ?? '?';
-                        final timeStr = data['createdAt'] != null
-                            ? DateFormat('dd MMM').format((data['createdAt'] as Timestamp).toDate())
-                            : '';
-                        
-                        final icon = type == 'image' ? Icons.photo_outlined : (type == 'video' ? Icons.videocam_outlined : Icons.insert_drive_file_outlined);
-                        final color = type == 'image' ? kOrange : (type == 'video' ? kPurple : kCyan);
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: GestureDetector(
-                            onTap: () => _showFileOptions(context, doc.id, title, size, timeStr, uploader, icon, color, data['url'] as String?),
-                            child: Container(
-                              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                              decoration: BoxDecoration(
-                                color: kSurface,
-                                borderRadius: BorderRadius.circular(13),
-                                border: Border.all(color: Colors.white.withAlpha(12), width: 1),
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(11)),
-                                    child: Icon(icon, color: color, size: 18),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                                        Text('$size · $timeStr · $uploader', style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
-                                    child: const Icon(Icons.more_horiz, color: kTextMuted, size: 14),
-                                  ),
-                                ],
-                              ),
+                    // Storage bar
+                    SurfaceCard(
+                      padding: const EdgeInsets.all(16),
+                      radius: 16,
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Stockage utilisé', style: TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+                              Text(storageText, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w700, color: kTextMuted)),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: LinearProgressIndicator(
+                              value: percent,
+                              minHeight: 6,
+                              backgroundColor: kSurface2,
+                              valueColor: const AlwaysStoppedAnimation<Color>(kPurple),
                             ),
                           ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-                const SizedBox(height: 20),
-              ],
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              _storageType('Images', kPurple),
+                              const SizedBox(width: 14),
+                              _storageType('Vidéos', kCyan),
+                              const SizedBox(width: 14),
+                              _storageType('Docs', kPink),
+                              const SizedBox(width: 14),
+                              _storageType('Autres', kOrange),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const SectionHeader(title: 'Dossiers'),
+                    GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 10,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 1.3,
+                      children: [
+                        _folderCard(context, 'Images', 'image', 'Fichiers médias', Icons.photo_library_outlined, kPurple),
+                        _folderCard(context, 'Vidéos', 'video', 'Souvenirs en vidéo', Icons.videocam_outlined, kPink),
+                        _folderCard(context, 'Documents', 'doc', 'Contrats & docs', Icons.insert_drive_file_outlined, kCyan),
+                        _folderCard(context, 'Coffre', 'vault', 'Accès sécurisé', Icons.lock_outline, kOrange),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    SectionHeader(
+                      title: _selectedFolder == 'Tous' ? 'Récents' : 'Fichiers - ${_selectedFolder.toUpperCase()}', 
+                      action: _selectedFolder == 'Tous' ? 'Tout voir' : 'Annuler',
+                      onActionTap: () => setState(() => _selectedFolder = 'Tous'),
+                    ),
+                    if (filteredDocs.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(_selectedFolder == 'Tous' ? 'Aucun fichier' : 'Aucun fichier dans ce dossier', style: const TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+                      )
+                    else
+                      Column(
+                        children: filteredDocs.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          final title = data['name'] ?? 'Inconnu';
+                          final size = data['size'] ?? '0 KB';
+                          final type = data['type'] ?? 'doc';
+                          final uploader = data['uploader'] ?? '?';
+                          final timeStr = data['createdAt'] != null
+                              ? DateFormat('dd MMM').format((data['createdAt'] as Timestamp).toDate())
+                              : '';
+                          
+                          final icon = type == 'image' ? Icons.photo_outlined : (type == 'video' ? Icons.videocam_outlined : Icons.insert_drive_file_outlined);
+                          final color = type == 'image' ? kOrange : (type == 'video' ? kPurple : kCyan);
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: GestureDetector(
+                              onTap: () => _showFileOptions(context, doc.id, title, size, timeStr, uploader, icon, color, data['url'] as String?),
+                              child: Container(
+                                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                                decoration: BoxDecoration(
+                                  color: kSurface,
+                                  borderRadius: BorderRadius.circular(13),
+                                  border: Border.all(color: Colors.white.withAlpha(12), width: 1),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(11)),
+                                      child: Icon(icon, color: color, size: 18),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(title, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
+                                          Text('$size · $timeStr · $uploader', style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 30,
+                                      height: 30,
+                                      decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
+                                      child: const Icon(Icons.more_horiz, color: kTextMuted, size: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              },
             ),
           ),
           AppBottomNavBar(currentIndex: 1, onTap: (i) => handleNavBarTap(context, i, 1)),
@@ -296,9 +313,12 @@ class _FilesScreenState extends State<FilesScreen> {
                 Navigator.pop(ctx); 
                 if (url != null) {
                   final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
+                  try {
+                    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir le fichier.')));
+                    }
+                  } catch (e) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Impossible d\'ouvrir le fichier.')));
                   }
@@ -308,7 +328,13 @@ class _FilesScreenState extends State<FilesScreen> {
             ListTile(
               leading: const Icon(Icons.share_outlined, color: kText),
               title: const Text('Partager', style: TextStyle(fontFamily: 'Nunito', color: kText, fontWeight: FontWeight.w600)),
-              onTap: () { Navigator.pop(ctx); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lien de partage généré dans le presse-papiers'))); },
+              onTap: () { 
+                Navigator.pop(ctx); 
+                if (url != null) {
+                  Clipboard.setData(ClipboardData(text: url));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lien de partage copié dans le presse-papiers'))); 
+                }
+              },
             ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: kRed),

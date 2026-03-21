@@ -16,6 +16,14 @@ class ChatListScreen extends StatefulWidget {
 
 class _ChatListScreenState extends State<ChatListScreen> {
   final FirestoreService _db = FirestoreService();
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   LinearGradient _getGrad(int index) {
     const list = [
@@ -201,27 +209,29 @@ class _ChatListScreenState extends State<ChatListScreen> {
           // Search
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(
-                color: kSurface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withAlpha(15), width: 1),
-              ),
-              child: Row(
-                children: const [
-                  Icon(Icons.search, color: kTextMuted, size: 16),
-                  SizedBox(width: 10),
-                  Text(
-                    'Rechercher un message…',
-                    style: TextStyle(
-                      fontFamily: 'Nunito',
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: kTextDim,
-                    ),
-                  ),
-                ],
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+              style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, color: kText),
+              decoration: InputDecoration(
+                hintText: 'Rechercher un message…',
+                hintStyle: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w600, color: kTextDim),
+                prefixIcon: const Icon(Icons.search, color: kTextMuted, size: 18),
+                filled: true,
+                fillColor: kSurface,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: kPurple, width: 1),
+                ),
               ),
             ),
           ),
@@ -352,39 +362,49 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       return d;
                     }).toList();
 
-                    return StreamBuilder<DocumentSnapshot>(
-                      stream: FirebaseFirestore.instance.collection('family_info').doc('details').snapshots(),
-                      builder: (context, infoSnap) {
-                        final familyName = infoSnap.hasData && infoSnap.data!.exists 
-                            ? (infoSnap.data!.data() as Map<String, dynamic>)['familyName'] ?? 'Notre Famille'
-                            : 'Notre Famille';
-                            
-                        return ListView(
-                          children: [
-                            _dateSep('Aujourd\'hui'),
-                            _convTile(
-                              _Conv(
-                                null,
-                                '🏠',
-                                const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [kPurple, kBlue],
+                      return StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance.collection('family_info').doc('details').snapshots(),
+                        builder: (context, infoSnap) {
+                          final familyName = infoSnap.hasData && infoSnap.data!.exists 
+                              ? (infoSnap.data!.data() as Map<String, dynamic>)['familyName'] ?? 'Notre Famille'
+                              : 'Notre Famille';
+                              
+                          final filteredDms = _searchQuery.isEmpty 
+                              ? dms 
+                              : dms.where((d) => (d['name']?.toString().toLowerCase() ?? '').contains(_searchQuery)).toList();
+                              
+                          final familyMatch = _searchQuery.isEmpty || 
+                              familyName.toLowerCase().contains(_searchQuery) || 
+                              'notre famille'.contains(_searchQuery);
+
+                          return ListView(
+                            children: [
+                              if (familyMatch) ...[
+                                _dateSep('Aujourd\'hui'),
+                                _convTile(
+                                  _Conv(
+                                    null,
+                                    '🏠',
+                                    const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [kPurple, kBlue],
+                                    ),
+                                    '$familyName 👨‍👩‍👧‍👦',
+                                    lastFamMsg,
+                                    lastFamTime,
+                                    0,
+                                    true,
+                                    isGroup: true,
+                                  ),
                                 ),
-                                '$familyName 👨‍👩‍👧‍👦',
-                                lastFamMsg,
-                                lastFamTime,
-                                0,
-                                true,
-                                isGroup: true,
-                              ),
-                            ),
-                            if (dms.isNotEmpty) _dateSep('Messages directs'),
-                            ...dms.map((data) {
-                              final timeStr = data['lastTime'] != null
-                                  ? DateFormat('dd MMM').format(
-                                      (data['lastTime'] as Timestamp).toDate(),
-                                    )
+                              ],
+                              if (filteredDms.isNotEmpty) _dateSep('Messages directs'),
+                              ...filteredDms.map((data) {
+                                final timeStr = data['lastTime'] != null
+                                    ? DateFormat('dd MMM').format(
+                                        (data['lastTime'] as Timestamp).toDate(),
+                                      )
                                   : '';
                               return _convTile(
                                 _Conv(

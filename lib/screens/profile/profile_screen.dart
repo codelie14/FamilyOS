@@ -6,6 +6,9 @@ import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
+import '../../services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
@@ -38,10 +41,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _updatePref(String key, bool value) async {
+  Future<void> _updatePref(String key, dynamic value) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       await db.updateMemberPreferences(uid, {key: value});
+    }
+  }
+
+  bool _isUploadingAvatar = false;
+
+  Future<void> _pickAndUploadAvatar() async {
+    final picker = ImagePicker();
+    final xfile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (xfile == null) return;
+
+    setState(() => _isUploadingAvatar = true);
+    try {
+      final file = File(xfile.path);
+      final cloudinary = CloudinaryService();
+      final url = await cloudinary.uploadImage(file, folder: 'familyos_avatars');
+      if (url != null) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await user.updatePhotoURL(url);
+          await _updatePref('photoURL', url);
+          // Wait for FirebaseAuth cache to update
+          await user.reload();
+          if (mounted) setState(() {});
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
     }
   }
 
@@ -316,36 +348,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     // Profile hero
                     Column(
                       children: [
-                        Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              width: 90,
-                              height: 90,
-                              decoration: BoxDecoration(
-                                gradient: kGradMain,
-                                borderRadius: BorderRadius.circular(28),
-                                border: Border.all(color: Colors.white.withAlpha(38), width: 3),
-                                boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 36, offset: const Offset(0, 12))],
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(userInitial, style: const TextStyle(fontFamily: 'Nunito', fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white)),
-                            ),
-                            Positioned(
-                              bottom: -4,
-                              right: -4,
-                              child: Container(
-                                width: 28,
-                                height: 28,
+                        GestureDetector(
+                          onTap: _pickAndUploadAvatar,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                width: 90,
+                                height: 90,
                                 decoration: BoxDecoration(
-                                  color: kSurface,
-                                  borderRadius: BorderRadius.circular(9),
-                                  border: Border.all(color: kBg2, width: 2),
+                                  gradient: kGradMain,
+                                  borderRadius: BorderRadius.circular(28),
+                                  border: Border.all(color: Colors.white.withAlpha(38), width: 3),
+                                  boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 36, offset: const Offset(0, 12))],
+                                  image: user?.photoURL != null ? DecorationImage(image: NetworkImage(user!.photoURL!), fit: BoxFit.cover) : null,
                                 ),
-                                child: const Icon(Icons.edit, color: kTextMuted, size: 13),
+                                alignment: Alignment.center,
+                                child: _isUploadingAvatar
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : (user?.photoURL == null ? Text(userInitial, style: const TextStyle(fontFamily: 'Nunito', fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white)) : null),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: -4,
+                                right: -4,
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: kSurface,
+                                    borderRadius: BorderRadius.circular(9),
+                                    border: Border.all(color: kBg2, width: 2),
+                                  ),
+                                  child: const Icon(Icons.edit, color: kTextMuted, size: 13),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 14),
                         Text(userName, style: const TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),

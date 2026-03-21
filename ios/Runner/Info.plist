@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Needed for voice notes in chat</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Needed to take photos for chat</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Needed to send photos from library</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
