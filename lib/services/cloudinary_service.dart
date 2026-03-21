@@ -1,14 +1,15 @@
 import 'dart:io';
 import 'package:cloudinary_api/uploader/cloudinary_uploader.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cloudinary_api/src/request/model/uploader_params.dart';
 import 'package:cloudinary_url_gen/cloudinary.dart';
 
 class CloudinaryService {
-  final String cloudName = 'diuhfwxio';
-  final String apiKey = '456931118672737';
-  final String apiSecret = 'RjD6NoosU3SMvxjTocCjoDA2RTs';
-
   late Cloudinary cloudinary;
+  
+  String get cloudName => dotenv.env['CLOUDINARY_CLOUD_NAME'] ?? '';
+  String get apiKey => dotenv.env['CLOUDINARY_API_KEY'] ?? '';
+  String get apiSecret => dotenv.env['CLOUDINARY_API_SECRET'] ?? '';
 
   CloudinaryService() {
     // Initialize Cloudinary URL generation
