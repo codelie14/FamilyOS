@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
@@ -24,6 +25,7 @@ class VaultScreen extends StatefulWidget {
 
 class _VaultScreenState extends State<VaultScreen> {
   final FirestoreService _db = FirestoreService();
+  final LocalAuthentication _auth = LocalAuthentication();
 
   // PIN state
   bool _unlocked = false;
@@ -41,15 +43,48 @@ class _VaultScreenState extends State<VaultScreen> {
     _loadPinHash();
   }
 
+  Future<void> _authenticateWithBiometrics() async {
+    try {
+      final bool canAuthenticateWithBiometrics = await _auth.canCheckBiometrics;
+      final bool canAuthenticate =
+          canAuthenticateWithBiometrics || await _auth.isDeviceSupported();
+
+      if (canAuthenticate) {
+        final bool didAuthenticate = await _auth.authenticate(
+          localizedReason: 'Veuillez vous authentifier pour accéder au coffre',
+          options: const AuthenticationOptions(
+            biometricOnly: true,
+            stickyAuth: true,
+          ),
+        );
+        if (didAuthenticate && mounted) {
+          setState(() {
+            _unlocked = true;
+          });
+        }
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
   Future<void> _loadPinHash() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) { setState(() => _loadingPin = false); return; }
+    if (uid == null) {
+      setState(() => _loadingPin = false);
+      return;
+    }
     final hash = await _db.getVaultPinHash(uid);
     setState(() {
       _storedPinHash = hash;
       _isCreatingPin = hash == null;
       _loadingPin = false;
     });
+
+    if (hash != null) {
+      // Auto-trigger biometrics if already set up
+      _authenticateWithBiometrics();
+    }
   }
 
   void _addDigit(String d) {
@@ -65,7 +100,8 @@ class _VaultScreenState extends State<VaultScreen> {
   }
 
   void _deleteDigit() {
-    if (_pin.isNotEmpty) setState(() => _pin = _pin.substring(0, _pin.length - 1));
+    if (_pin.isNotEmpty)
+      setState(() => _pin = _pin.substring(0, _pin.length - 1));
   }
 
   Future<void> _processPin() async {
@@ -109,7 +145,10 @@ class _VaultScreenState extends State<VaultScreen> {
 
     // --- Normal unlock ---
     if (_hashPin(_pin) == _storedPinHash) {
-      setState(() { _unlocked = true; _pin = ''; });
+      setState(() {
+        _unlocked = true;
+        _pin = '';
+      });
     } else {
       setState(() {
         _pin = '';
@@ -126,7 +165,10 @@ class _VaultScreenState extends State<VaultScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Nouveau secret', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        title: const Text(
+          'Nouveau secret',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -138,7 +180,10 @@ class _VaultScreenState extends State<VaultScreen> {
                 hintStyle: const TextStyle(color: kTextMuted),
                 filled: true,
                 fillColor: kSurface2,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -151,17 +196,25 @@ class _VaultScreenState extends State<VaultScreen> {
                 hintStyle: const TextStyle(color: kTextMuted),
                 filled: true,
                 fillColor: kSurface2,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () {
               if (titleCtrl.text.isNotEmpty && secretCtrl.text.isNotEmpty) {
-                final encryptedSecret = EncryptionService.encrypt(secretCtrl.text.trim());
+                final encryptedSecret = EncryptionService.encrypt(
+                  secretCtrl.text.trim(),
+                );
                 _db.addVaultSecret({
                   'title': titleCtrl.text.trim(),
                   'secret': encryptedSecret,
@@ -184,13 +237,25 @@ class _VaultScreenState extends State<VaultScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: Text(data['title'] ?? 'Secret', style: const TextStyle(fontFamily: 'Sora', color: kText)),
+        title: Text(
+          data['title'] ?? 'Secret',
+          style: const TextStyle(fontFamily: 'Sora', color: kText),
+        ),
         content: Container(
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: kBg2, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: kBg2,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: SelectableText(
             plainSecret,
-            style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, fontWeight: FontWeight.w700, color: kCyan, letterSpacing: 1),
+            style: const TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: kCyan,
+              letterSpacing: 1,
+            ),
           ),
         ),
         actions: [
@@ -201,11 +266,26 @@ class _VaultScreenState extends State<VaultScreen> {
                 context: context,
                 builder: (c) => AlertDialog(
                   backgroundColor: kSurface,
-                  title: const Text('Supprimer ce secret ?', style: TextStyle(fontFamily: 'Sora', color: kText)),
-                  content: const Text('Cette action est irréversible.', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+                  title: const Text(
+                    'Supprimer ce secret ?',
+                    style: TextStyle(fontFamily: 'Sora', color: kText),
+                  ),
+                  content: const Text(
+                    'Cette action est irréversible.',
+                    style: TextStyle(fontFamily: 'Nunito', color: kTextMuted),
+                  ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-                    TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer', style: TextStyle(color: kRed))),
+                    TextButton(
+                      onPressed: () => Navigator.pop(c, false),
+                      child: const Text('Annuler'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(c, true),
+                      child: const Text(
+                        'Supprimer',
+                        style: TextStyle(color: kRed),
+                      ),
+                    ),
                   ],
                 ),
               );
@@ -215,7 +295,10 @@ class _VaultScreenState extends State<VaultScreen> {
             },
             child: const Text('Supprimer', style: TextStyle(color: kRed)),
           ),
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
         ],
       ),
     );
@@ -240,19 +323,35 @@ class _VaultScreenState extends State<VaultScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Coffre', style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
+                const Text(
+                  'Coffre',
+                  style: TextStyle(
+                    fontFamily: 'Sora',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: kText,
+                  ),
+                ),
                 if (_unlocked)
                   GestureDetector(
                     onTap: _showAddSecretDialog,
-                    child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                    child: AppIconButton(
+                      isAccent: true,
+                      icon: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
                   ),
               ],
             ),
           ),
-          Expanded(
-            child: _unlocked ? _buildContent() : _buildLock(),
+          Expanded(child: _unlocked ? _buildContent() : _buildLock()),
+          AppBottomNavBar(
+            currentIndex: 0,
+            onTap: (i) => handleNavBarTap(context, i, 0),
           ),
-          AppBottomNavBar(currentIndex: 0, onTap: (i) => handleNavBarTap(context, i, 0)),
         ],
       ),
     );
@@ -264,8 +363,8 @@ class _VaultScreenState extends State<VaultScreen> {
         : 'Coffre Familial 🔐';
     String subtitle = _isCreatingPin
         ? (_confirming
-            ? 'Saisissez à nouveau votre code pour confirmer.'
-            : 'Choisissez un code PIN à 4 chiffres pour protéger votre coffre.')
+              ? 'Saisissez à nouveau votre code pour confirmer.'
+              : 'Choisissez un code PIN à 4 chiffres pour protéger votre coffre.')
         : 'Vos données sont chiffrées et protégées par votre code PIN';
 
     return SingleChildScrollView(
@@ -277,9 +376,14 @@ class _VaultScreenState extends State<VaultScreen> {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: _isCreatingPin ? kPurple.withAlpha(51) : kOrange.withAlpha(51),
+              color: _isCreatingPin
+                  ? kPurple.withAlpha(51)
+                  : kOrange.withAlpha(51),
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: (_isCreatingPin ? kPurple : kOrange).withAlpha(64), width: 1),
+              border: Border.all(
+                color: (_isCreatingPin ? kPurple : kOrange).withAlpha(64),
+                width: 1,
+              ),
             ),
             child: Icon(
               _isCreatingPin ? Icons.lock_open_outlined : Icons.lock_outline,
@@ -288,40 +392,85 @@ class _VaultScreenState extends State<VaultScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Text(title, style: const TextStyle(fontFamily: 'Sora', fontSize: 20, fontWeight: FontWeight.w700, color: kText)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: 'Sora',
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: kText,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
             subtitle,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w600, color: kTextMuted, height: 1.5),
+            style: const TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: kTextMuted,
+              height: 1.5,
+            ),
           ),
           if (_pinError) ...[
             const SizedBox(height: 10),
             Text(
-              _isCreatingPin ? 'Les codes ne correspondent pas. Recommencez.' : 'Code incorrect. Réessayez.',
+              _isCreatingPin
+                  ? 'Les codes ne correspondent pas. Recommencez.'
+                  : 'Code incorrect. Réessayez.',
               textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w700, color: kRed),
+              style: const TextStyle(
+                fontFamily: 'Nunito',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: kRed,
+              ),
             ),
           ],
           const SizedBox(height: 28),
-          const Text('CODE PIN', style: TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w800, color: kTextMuted, letterSpacing: 1)),
+          const Text(
+            'CODE PIN',
+            style: TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: kTextMuted,
+              letterSpacing: 1,
+            ),
+          ),
           const SizedBox(height: 14),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(4, (i) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 7),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                width: 14,
-                height: 14,
-                decoration: BoxDecoration(
-                  color: i < _pin.length ? kPurple : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: i < _pin.length ? null : Border.all(color: Colors.white.withAlpha(38), width: 2),
-                  boxShadow: i < _pin.length ? [BoxShadow(color: kPurple.withAlpha(127), blurRadius: 12)] : null,
+            children: List.generate(
+              4,
+              (i) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: i < _pin.length ? kPurple : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: i < _pin.length
+                        ? null
+                        : Border.all(
+                            color: Colors.white.withAlpha(38),
+                            width: 2,
+                          ),
+                    boxShadow: i < _pin.length
+                        ? [
+                            BoxShadow(
+                              color: kPurple.withAlpha(127),
+                              blurRadius: 12,
+                            ),
+                          ]
+                        : null,
+                  ),
                 ),
               ),
-            )),
+            ),
           ),
           const SizedBox(height: 20),
           GridView.count(
@@ -332,8 +481,13 @@ class _VaultScreenState extends State<VaultScreen> {
             crossAxisSpacing: 10,
             childAspectRatio: 2.2,
             children: [
-              ...'123456789'.split('').map((d) => _pinBtn(d, () => _addDigit(d))),
-              Container(),
+              ...'123456789'
+                  .split('')
+                  .map((d) => _pinBtn(d, () => _addDigit(d))),
+              if (!_isCreatingPin)
+                _pinBtnIcon(Icons.fingerprint, _authenticateWithBiometrics)
+              else
+                Container(),
               _pinBtn('0', () => _addDigit('0')),
               _pinBtn('⌫', _deleteDigit, isDelete: true),
             ],
@@ -353,8 +507,30 @@ class _VaultScreenState extends State<VaultScreen> {
           border: Border.all(color: Colors.white.withAlpha(15), width: 1),
         ),
         alignment: Alignment.center,
-        child: Text(label,
-            style: TextStyle(fontFamily: 'Nunito', fontSize: isDelete ? 18 : 20, fontWeight: FontWeight.w700, color: isDelete ? kTextMuted : kText)),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Nunito',
+            fontSize: isDelete ? 18 : 20,
+            fontWeight: FontWeight.w700,
+            color: isDelete ? kTextMuted : kText,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pinBtnIcon(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withAlpha(15), width: 1),
+        ),
+        alignment: Alignment.center,
+        child: Icon(icon, color: kPurple, size: 22),
       ),
     );
   }
@@ -378,26 +554,45 @@ class _VaultScreenState extends State<VaultScreen> {
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
           childAspectRatio: 1.35,
-          children: categories.map((c) => Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: kSurface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.white.withAlpha(12), width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42, height: 42,
-                  decoration: BoxDecoration(color: c.$3.withAlpha(38), borderRadius: BorderRadius.circular(12)),
-                  child: Icon(c.$2, color: c.$3, size: 20),
+          children: categories
+              .map(
+                (c) => Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: Colors.white.withAlpha(12),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: c.$3.withAlpha(38),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(c.$2, color: c.$3, size: 20),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        c.$1,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: kText,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
-                Text(c.$1, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-              ],
-            ),
-          )).toList(),
+              )
+              .toList(),
         ),
         const SizedBox(height: 20),
         const SectionHeader(title: 'Secrets récents'),
@@ -407,7 +602,10 @@ class _VaultScreenState extends State<VaultScreen> {
             if (!snap.hasData || snap.data!.docs.isEmpty) {
               return const Padding(
                 padding: EdgeInsets.all(20),
-                child: Text('Aucun secret enregistré', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+                child: Text(
+                  'Aucun secret enregistré',
+                  style: TextStyle(fontFamily: 'Nunito', color: kTextMuted),
+                ),
               );
             }
             return Column(
@@ -415,7 +613,9 @@ class _VaultScreenState extends State<VaultScreen> {
                 final data = doc.data() as Map<String, dynamic>;
                 final title = data['title'] ?? 'Secret sans nom';
                 final isPassword = data['type'] == 'password';
-                final icon = isPassword ? Icons.language : Icons.desktop_windows_outlined;
+                final icon = isPassword
+                    ? Icons.language
+                    : Icons.desktop_windows_outlined;
                 final color = isPassword ? kCyan : kOrange;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -425,8 +625,12 @@ class _VaultScreenState extends State<VaultScreen> {
                       child: Row(
                         children: [
                           Container(
-                            width: 38, height: 38,
-                            decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(10)),
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: color.withAlpha(38),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                             child: Icon(icon, color: color, size: 17),
                           ),
                           const SizedBox(width: 12),
@@ -434,15 +638,39 @@ class _VaultScreenState extends State<VaultScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(title, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w800, color: kText)),
-                                const Text('••••••••••', style: TextStyle(fontFamily: 'Sora', fontSize: 12, letterSpacing: 2, color: kTextMuted)),
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    fontFamily: 'Nunito',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    color: kText,
+                                  ),
+                                ),
+                                const Text(
+                                  '••••••••••',
+                                  style: TextStyle(
+                                    fontFamily: 'Sora',
+                                    fontSize: 12,
+                                    letterSpacing: 2,
+                                    color: kTextMuted,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           Container(
-                            width: 30, height: 30,
-                            decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(9)),
-                            child: const Icon(Icons.visibility_outlined, color: kTextMuted, size: 13),
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: kSurface2,
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: const Icon(
+                              Icons.visibility_outlined,
+                              color: kTextMuted,
+                              size: 13,
+                            ),
                           ),
                         ],
                       ),

@@ -202,7 +202,10 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     if (type == 'image' && msg['imageUrl'] != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: Image.network(msg['imageUrl'], fit: BoxFit.cover, constraints: const BoxConstraints(maxHeight: 250, maxWidth: 250)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 250, maxWidth: 250),
+          child: Image.network(msg['imageUrl'], fit: BoxFit.cover),
+        ),
       );
     } else if (type == 'audio' && msg['audioUrl'] != null) {
       return SizedBox(

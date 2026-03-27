@@ -5,7 +5,10 @@ class FirestoreService {
 
   // -- Tasks --
   Stream<QuerySnapshot> getTasksStream() {
-    return _db.collection('tasks').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('tasks')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addTask(Map<String, dynamic> taskData) async {
@@ -27,7 +30,10 @@ class FirestoreService {
 
   // -- Gallery Photos --
   Stream<QuerySnapshot> getGalleryStream() {
-    return _db.collection('gallery').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('gallery')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addPhoto(String url, {String? category, String? albumId}) async {
@@ -45,7 +51,10 @@ class FirestoreService {
 
   // -- Albums --
   Stream<QuerySnapshot> getAlbumsStream() {
-    return _db.collection('albums').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('albums')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addAlbum(Map<String, dynamic> albumData) async {
@@ -59,12 +68,15 @@ class FirestoreService {
 
   // -- Chat Messages (Family Group) --
   Stream<QuerySnapshot> getFamilyChatStream() {
-    return _db.collection('family_chat').orderBy('timestamp', descending: true).snapshots();
+    return _db
+        .collection('family_chat')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 
   Future<void> sendChatMessage({
-    required String senderName, 
-    String? text, 
+    required String senderName,
+    String? text,
     String? imageUrl,
     String? audioUrl,
     String? videoUrl,
@@ -89,7 +101,10 @@ class FirestoreService {
 
   // -- Vault Secrets --
   Stream<QuerySnapshot> getVaultSecretsStream() {
-    return _db.collection('vault_secrets').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('vault_secrets')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addVaultSecret(Map<String, dynamic> secretData) async {
@@ -111,12 +126,17 @@ class FirestoreService {
   }
 
   Future<void> setVaultPinHash(String uid, String hashedPin) async {
-    await _db.collection('members').doc(uid).update({'vaultPinHash': hashedPin});
+    await _db.collection('members').doc(uid).update({
+      'vaultPinHash': hashedPin,
+    });
   }
 
   // -- Notes --
   Stream<QuerySnapshot> getNotesStream() {
-    return _db.collection('notes').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('notes')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addNote(Map<String, dynamic> noteData) async {
@@ -134,7 +154,10 @@ class FirestoreService {
 
   // -- Events (Calendar) --
   Stream<QuerySnapshot> getEventsStream() {
-    return _db.collection('events').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('events')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addEvent(Map<String, dynamic> eventData) async {
@@ -152,7 +175,10 @@ class FirestoreService {
 
   // -- Files --
   Stream<QuerySnapshot> getFilesStream() {
-    return _db.collection('files').orderBy('createdAt', descending: true).snapshots();
+    return _db
+        .collection('files')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   Future<void> addFile(Map<String, dynamic> fileData) async {
@@ -164,22 +190,60 @@ class FirestoreService {
     await _db.collection('files').doc(fileId).delete();
   }
 
+  // -- Folders --
+  Stream<QuerySnapshot> getFoldersStream() {
+    return _db
+        .collection('folders')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  Future<void> addFolder(String name, String type) async {
+    await _db.collection('folders').add({
+      'name': name,
+      'type': type,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteFolder(String folderId) async {
+    await _db.collection('folders').doc(folderId).delete();
+  }
+
   // -- Members (Online Strip) --
   Stream<QuerySnapshot> getMembersStream() {
     return _db.collection('members').orderBy('name').snapshots();
+  }
+
+  Future<Map<String, dynamic>?> getUserData(String uid) async {
+    final doc = await _db.collection('members').doc(uid).get();
+    if (doc.exists) {
+      return doc.data() as Map<String, dynamic>?;
+    }
+    return null;
   }
 
   Future<void> addMember(Map<String, dynamic> memberData) async {
     await _db.collection('members').add(memberData);
   }
 
-  Future<void> updateMemberPreferences(String uid, Map<String, dynamic> prefs) async {
+  Future<void> updateMemberPreferences(
+    String uid,
+    Map<String, dynamic> prefs,
+  ) async {
     await _db.collection('members').doc(uid).update(prefs);
+  }
+
+  Future<void> updateFCMToken(String uid, String token) async {
+    await _db.collection('members').doc(uid).update({'fcmToken': token});
   }
 
   // -- Direct Chats --
   Stream<QuerySnapshot> getDirectChatsStream() {
-    return _db.collection('direct_chats').orderBy('lastTime', descending: true).snapshots();
+    return _db
+        .collection('direct_chats')
+        .orderBy('lastTime', descending: true)
+        .snapshots();
   }
 
   Future<void> addDirectChat(Map<String, dynamic> chatData) async {
@@ -188,13 +252,18 @@ class FirestoreService {
   }
 
   Stream<QuerySnapshot> getDirectMessageStream(String dmId) {
-    return _db.collection('direct_chats').doc(dmId).collection('messages').orderBy('timestamp', descending: true).snapshots();
+    return _db
+        .collection('direct_chats')
+        .doc(dmId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 
   Future<void> sendDirectMessage({
-    required String dmId, 
-    required String senderName, 
-    String? text, 
+    required String dmId,
+    required String senderName,
+    String? text,
     String? imageUrl,
     String? audioUrl,
     String? videoUrl,
@@ -211,7 +280,7 @@ class FirestoreService {
       'replyTo': replyTo,
       'timestamp': FieldValue.serverTimestamp(),
     });
-    
+
     String previewText = text ?? '';
     if (type == 'image') previewText = '📷 Image jointe';
     if (type == 'audio') previewText = '🎤 Note vocale';
@@ -224,6 +293,11 @@ class FirestoreService {
   }
 
   Future<void> deleteDirectMessage(String dmId, String messageId) async {
-    await _db.collection('direct_chats').doc(dmId).collection('messages').doc(messageId).delete();
+    await _db
+        .collection('direct_chats')
+        .doc(dmId)
+        .collection('messages')
+        .doc(messageId)
+        .delete();
   }
 }

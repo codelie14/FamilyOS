@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 import '../../core/theme.dart';
 import '../../widgets/bottom_nav_bar.dart';
 import '../../widgets/common_widgets.dart';
@@ -16,52 +17,46 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   final FirestoreService _db = FirestoreService();
 
-  late DateTime _currentMonth;
-  int? _selectedDay;
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  Map<DateTime, List<dynamic>> _events = {};
 
   @override
   void initState() {
     super.initState();
-    _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
-    _selectedDay = DateTime.now().day;
+    _selectedDay = _focusedDay;
   }
 
-  Color _getColor(int index) {
-    const list = [kPink, kCyan, kGreen, kOrange, kPurple];
-    return list[index % list.length];
+  List<dynamic> _getEventsForDay(DateTime day) {
+    // Strip time for comparison
+    final date = DateTime(day.year, day.month, day.day);
+    return _events[date] ?? [];
   }
 
-  void _prevMonth() => setState(() {
-    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-    _selectedDay = null;
-  });
+  void _onDaySelected(DateTime selectedDay, DateTime focusedDay) {
+    if (!isSameDay(_selectedDay, selectedDay)) {
+      setState(() {
+        _selectedDay = selectedDay;
+        _focusedDay = focusedDay;
+      });
+    }
+  }
 
-  void _nextMonth() => setState(() {
-    _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-    _selectedDay = null;
-  });
-
-  /// Returns list of days in the current month grid (including leading/trailing nulls)
-  List<int?> _buildDayGrid() {
-    final firstDay = DateTime(_currentMonth.year, _currentMonth.month, 1);
-    final daysInMonth = DateTime(_currentMonth.year, _currentMonth.month + 1, 0).day;
-
-    // weekday: Mon=1 ... Sun=7
-    final startOffset = (firstDay.weekday - 1); // 0-based, Mon=0
-    final total = ((startOffset + daysInMonth + 6) ~/ 7) * 7;
-    return List.generate(total, (i) {
-      final d = i - startOffset + 1;
-      return (d >= 1 && d <= daysInMonth) ? d : null;
-    });
+  DateTime? _parseDate(dynamic dateVal) {
+    if (dateVal == null) return null;
+    if (dateVal is Timestamp) return dateVal.toDate();
+    if (dateVal is String) {
+      try { return DateTime.parse(dateVal); } catch (_) { return null; }
+    }
+    return null;
   }
 
   Future<void> _showAddEventDialog(BuildContext context) async {
     final titleCtrl = TextEditingController();
     TimeOfDay startTime = const TimeOfDay(hour: 10, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 11, minute: 0);
-    final selectedDate = _selectedDay != null
-        ? DateTime(_currentMonth.year, _currentMonth.month, _selectedDay!)
-        : DateTime.now();
+    final selectedDate = _selectedDay ?? DateTime.now();
 
     await showDialog(
       context: context,
@@ -154,10 +149,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now();
-    final days = _buildDayGrid();
-    final monthLabel = DateFormat('MMMM yyyy', 'fr_FR').format(_currentMonth);
-
     return Scaffold(
       backgroundColor: kBg2,
       body: Column(
@@ -169,14 +160,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Agenda', style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
-                Row(children: [
-                  AppIconButton(icon: const Icon(Icons.calendar_month_outlined, color: kTextMuted, size: 18)),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _showAddEventDialog(context),
-                    child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
-                  ),
-                ]),
+                GestureDetector(
+                  onTap: () => _showAddEventDialog(context),
+                  child: AppIconButton(isAccent: true, icon: const Icon(Icons.add, color: Colors.white, size: 18)),
+                ),
               ],
             ),
           ),
@@ -184,252 +171,122 @@ class _CalendarScreenState extends State<CalendarScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: _db.getEventsStream(),
               builder: (context, snapshot) {
-                final allDocs = snapshot.data?.docs ?? [];
-
-                // Build set of days that have events in this month
-                final eventDays = <int>{};
-                for (final doc in allDocs) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  if (data['date'] != null) {
-                    final dt = (data['date'] as Timestamp).toDate();
-                    if (dt.year == _currentMonth.year && dt.month == _currentMonth.month) {
-                      eventDays.add(dt.day);
+                if (snapshot.hasData) {
+                  final allDocs = snapshot.data!.docs;
+                  _events = {};
+                  for (var doc in allDocs) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final date = _parseDate(data['date']);
+                    if (date != null) {
+                      final day = DateTime(date.year, date.month, date.day);
+                      if (_events[day] == null) _events[day] = [];
+                      _events[day]!.add(doc);
                     }
                   }
                 }
 
-                // Filter events by selected day (or all if none selected)
-                List<QueryDocumentSnapshot> filteredDocs;
-                if (_selectedDay != null) {
-                  filteredDocs = allDocs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    if (data['date'] == null) return false;
-                    final dt = (data['date'] as Timestamp).toDate();
-                    return dt.year == _currentMonth.year && dt.month == _currentMonth.month && dt.day == _selectedDay;
-                  }).toList();
-                } else {
-                  filteredDocs = allDocs;
-                }
+                final selectedDayEvents = _getEventsForDay(_selectedDay ?? _focusedDay);
 
                 return ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
-                    // Mini calendar
                     SurfaceCard(
-                      padding: const EdgeInsets.all(16),
-                      radius: 18,
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                monthLabel[0].toUpperCase() + monthLabel.substring(1),
-                                style: const TextStyle(fontFamily: 'Sora', fontSize: 16, fontWeight: FontWeight.w700, color: kText),
-                              ),
-                              Row(children: [
-                                _calNavBtn(Icons.chevron_left, _prevMonth),
-                                const SizedBox(width: 6),
-                                _calNavBtn(Icons.chevron_right, _nextMonth),
-                              ]),
-                            ],
+                      padding: const EdgeInsets.all(10),
+                      radius: 20,
+                      child: TableCalendar(
+                        locale: 'fr_FR',
+                        firstDay: DateTime.utc(2020, 1, 1),
+                        lastDay: DateTime.utc(2030, 12, 31),
+                        focusedDay: _focusedDay,
+                        calendarFormat: _calendarFormat,
+                        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                        onDaySelected: _onDaySelected,
+                        onFormatChanged: (format) => setState(() => _calendarFormat = format),
+                        onPageChanged: (focusedDay) => _focusedDay = focusedDay,
+                        eventLoader: _getEventsForDay,
+                        startingDayOfWeek: StartingDayOfWeek.monday,
+                        headerStyle: HeaderStyle(
+                          formatButtonVisible: true,
+                          titleCentered: true,
+                          titleTextStyle: const TextStyle(fontFamily: 'Sora', color: kText, fontWeight: FontWeight.bold),
+                          formatButtonDecoration: BoxDecoration(
+                            color: kPurple.withAlpha(40),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(height: 14),
-                          // Day headers
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-                                .map((d) => Expanded(
-                                    child: Center(
-                                        child: Text(d,
-                                            style: const TextStyle(
-                                                fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w800, color: kTextDim)))))
-                                .toList(),
-                          ),
-                          const SizedBox(height: 8),
-                          // Calendar grid
-                          GridView.count(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            crossAxisCount: 7,
-                            childAspectRatio: 0.9,
-                            mainAxisSpacing: 2,
-                            children: days.map((d) {
-                              if (d == null) return const SizedBox();
-                              final isToday = _currentMonth.year == today.year &&
-                                  _currentMonth.month == today.month &&
-                                  d == today.day;
-                              final isSelected = d == _selectedDay;
-                              final hasEvent = eventDays.contains(d);
-
-                              return GestureDetector(
-                                onTap: () => setState(() => _selectedDay = _selectedDay == d ? null : d),
-                                child: Container(
-                                  height: 34,
-                                  margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 1),
-                                  decoration: isToday
-                                      ? BoxDecoration(gradient: kGradMain, borderRadius: BorderRadius.circular(10))
-                                      : isSelected
-                                          ? BoxDecoration(
-                                              color: kPurple.withAlpha(38),
-                                              borderRadius: BorderRadius.circular(10),
-                                              border: Border.all(color: kPurple.withAlpha(64), width: 1),
-                                            )
-                                          : null,
-                                  alignment: Alignment.center,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      Text(
-                                        '$d',
-                                        style: TextStyle(
-                                          fontFamily: 'Nunito',
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                          color: isToday ? Colors.white : isSelected ? kPurpleLight : kTextMuted,
-                                        ),
-                                      ),
-                                      if (hasEvent)
-                                        Positioned(
-                                          bottom: -4,
-                                          child: Container(
-                                            width: 4, height: 4,
-                                            decoration: BoxDecoration(
-                                              color: isToday ? Colors.white60 : kPink,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
+                          formatButtonTextStyle: const TextStyle(color: kPurpleLight, fontWeight: FontWeight.bold),
+                          leftChevronIcon: const Icon(Icons.chevron_left, color: kTextMuted),
+                          rightChevronIcon: const Icon(Icons.chevron_right, color: kTextMuted),
+                        ),
+                        calendarStyle: CalendarStyle(
+                          defaultTextStyle: const TextStyle(color: kText),
+                          weekendTextStyle: const TextStyle(color: kPink),
+                          outsideTextStyle: const TextStyle(color: kTextDim),
+                          selectedDecoration: const BoxDecoration(color: kPurple, shape: BoxShape.circle),
+                          todayDecoration: BoxDecoration(color: kPurple.withAlpha(80), shape: BoxShape.circle),
+                          markerDecoration: const BoxDecoration(color: kCyan, shape: BoxShape.circle),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     SectionHeader(
-                      title: _selectedDay != null
-                          ? 'Événements du ${_selectedDay} ${DateFormat('MMMM').format(_currentMonth)}'
-                          : 'Tous les événements',
-                      action: _selectedDay != null ? 'Tout voir' : null,
-                      onActionTap: () => setState(() => _selectedDay = null),
+                      title: 'Événements du ${DateFormat('dd MMMM', 'fr_FR').format(_selectedDay ?? _focusedDay)}',
                     ),
-                    if (snapshot.connectionState == ConnectionState.waiting)
-                      const Center(child: CircularProgressIndicator(color: kPurple))
-                    else if (filteredDocs.isEmpty)
+                    if (selectedDayEvents.isEmpty)
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20),
-                        child: Text('Aucun événement', style: TextStyle(color: kTextMuted, fontFamily: 'Nunito')),
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Text('Aucun événement ce jour-là', style: TextStyle(fontFamily: 'Nunito', color: kTextMuted)),
+                        ),
                       )
                     else
-                      ...filteredDocs.map((doc) {
+                      ...selectedDayEvents.map((doc) {
                         final data = doc.data() as Map<String, dynamic>;
-                        final color = _getColor(data['colorIndex'] ?? 0);
-                        final title = data['title'] ?? 'Sans nom';
-                        final time = data['time'] ?? 'Heure inconnue';
-                        final tagsRaw = data['tags'] as List<dynamic>? ?? [];
-                        final tags = tagsRaw.map((e) => e.toString()).toList();
-                        final dateStr = data['date'] != null
-                            ? DateFormat('EEE d MMM', 'fr_FR').format((data['date'] as Timestamp).toDate())
-                            : '';
+                        final title = data['title'] ?? 'Sans titre';
+                        final time = data['time'] ?? '';
+                        final colorIndex = data['colorIndex'] ?? 0;
+                        final colors = [kPink, kCyan, kGreen, kOrange, kPurple];
+                        final color = colors[colorIndex % colors.length];
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Dismissible(
-                            key: Key(doc.id),
-                            direction: DismissDirection.endToStart,
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 20),
-                              decoration: BoxDecoration(
-                                color: kRed.withAlpha(51),
-                                borderRadius: BorderRadius.circular(14),
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: kSurface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: color.withAlpha(40), width: 1),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 4,
+                                height: 40,
+                                decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
                               ),
-                              child: const Icon(Icons.delete_outline, color: kRed),
-                            ),
-                            confirmDismiss: (_) async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (c) => AlertDialog(
-                                  backgroundColor: kSurface,
-                                  title: const Text('Supprimer cet événement ?', style: TextStyle(fontFamily: 'Sora', color: kText)),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-                                    TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Supprimer', style: TextStyle(color: kRed))),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(title, style: const TextStyle(fontFamily: 'Sora', fontSize: 15, fontWeight: FontWeight.w700, color: kText)),
+                                    const SizedBox(height: 4),
+                                    Text(time, style: const TextStyle(fontFamily: 'Nunito', fontSize: 13, fontWeight: FontWeight.w600, color: kTextMuted)),
                                   ],
                                 ),
-                              );
-                              return confirm ?? false;
-                            },
-                            onDismissed: (_) => _db.deleteEvent(doc.id),
-                            child: SurfaceCard(
-                              padding: const EdgeInsets.all(14),
-                              radius: 14,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(width: 4, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10))),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(title, style: const TextStyle(fontFamily: 'Sora', fontSize: 20, fontWeight: FontWeight.w700, color: kText)),
-                                        const SizedBox(height: 4),
-                                        Row(children: [
-                                          if (dateStr.isNotEmpty) ...[
-                                            const Icon(Icons.calendar_today_outlined, size: 12, color: kTextDim),
-                                            const SizedBox(width: 4),
-                                            Text('$dateStr · ', style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, color: kTextMuted)),
-                                          ],
-                                          const Icon(Icons.access_time_outlined, size: 12, color: kTextDim),
-                                          const SizedBox(width: 4),
-                                          Text(time, style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
-                                        ]),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 6,
-                                          children: tags.map((tag) => Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: color.withAlpha(38),
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: Text(tag, style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-                                          )).toList(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
                               ),
-                            ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: kTextDim, size: 20),
+                                onPressed: () => _db.deleteEvent(doc.id),
+                              ),
+                            ],
                           ),
                         );
-                      }),
-                    const SizedBox(height: 20),
+                      }).toList(),
                   ],
                 );
               },
             ),
           ),
-          AppBottomNavBar(currentIndex: 2, onTap: (i) => handleNavBarTap(context, i, 2)),
         ],
-      ),
-    );
-  }
-
-  Widget _calNavBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28, height: 28,
-        decoration: BoxDecoration(color: kSurface2, borderRadius: BorderRadius.circular(8)),
-        child: Icon(icon, color: kTextMuted, size: 14),
       ),
     );
   }

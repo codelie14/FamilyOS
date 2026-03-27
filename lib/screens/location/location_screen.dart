@@ -1,8 +1,9 @@
-
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../core/theme.dart';
 import '../../widgets/common_widgets.dart';
 import '../../services/firestore_service.dart';
@@ -19,11 +20,39 @@ class _LocationScreenState extends State<LocationScreen> {
   final FirestoreService _db = FirestoreService();
   final MapController _mapController = MapController();
   LatLng _myPosition = const LatLng(48.8566, 2.3522); // Paris fallback
+  StreamSubscription<Position>? _positionSubscription;
+  bool _followMe = true;
 
   @override
   void initState() {
     super.initState();
     _initLocation();
+    _startLocationStream();
+  }
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startLocationStream() async {
+    final hasPermission = await LocationService.requestPermission();
+    if (hasPermission) {
+      _positionSubscription = LocationService.getPositionStream().listen((pos) {
+        if (mounted) {
+          setState(() {
+            _myPosition = LatLng(pos.latitude, pos.longitude);
+          });
+          if (_followMe) {
+            _mapController.move(_myPosition, _mapController.camera.zoom);
+          }
+          // Optionally update Firestore periodically (not on every stream update to save writes)
+          // For now, let's update it here or in updateMyLocation
+        }
+      });
+    }
   }
 
   Future<void> _initLocation() async {
@@ -38,11 +67,31 @@ class _LocationScreenState extends State<LocationScreen> {
 
   LinearGradient _getGrad(int index) {
     const list = [
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPink, kPurple]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kCyan, kBlue]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kGreen, kCyan]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kOrange, kPink]),
-      LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPurple, kBlue]),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kPink, kPurple],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kCyan, kBlue],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kGreen, kCyan],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kOrange, kPink],
+      ),
+      LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [kPurple, kBlue],
+      ),
     ];
     return list[index % list.length];
   }
@@ -67,19 +116,52 @@ class _LocationScreenState extends State<LocationScreen> {
                     decoration: BoxDecoration(
                       color: kSurface,
                       borderRadius: BorderRadius.circular(11),
-                      border: Border.all(color: Colors.white.withAlpha(15), width: 1),
+                      border: Border.all(
+                        color: Colors.white.withAlpha(15),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(Icons.chevron_left, color: kTextMuted, size: 22),
+                    child: const Icon(
+                      Icons.chevron_left,
+                      color: kTextMuted,
+                      size: 22,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 14),
-                const Text('Localisation', style: TextStyle(fontFamily: 'Sora', fontSize: 20, fontWeight: FontWeight.w700, color: kText)),
+                const Text(
+                  'Localisation',
+                  style: TextStyle(
+                    fontFamily: 'Sora',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: kText,
+                  ),
+                ),
                 const Spacer(),
-                AppIconButton(icon: const Icon(Icons.share_location, color: kTextMuted, size: 18), showDot: true),
+                GestureDetector(
+                  onTap: () => setState(() => _followMe = !_followMe),
+                  child: AppIconButton(
+                    icon: Icon(
+                      _followMe ? Icons.gps_fixed : Icons.gps_not_fixed,
+                      color: _followMe ? kCyan : kTextMuted,
+                      size: 18,
+                    ),
+                    showDot: _followMe,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                AppIconButton(
+                  icon: const Icon(
+                    Icons.share_location,
+                    color: kTextMuted,
+                    size: 18,
+                  ),
+                ),
               ],
             ),
           ),
-          
+
           // Radar View
           // Map View
           Expanded(
@@ -93,7 +175,7 @@ class _LocationScreenState extends State<LocationScreen> {
                 stream: _db.getMembersStream(),
                 builder: (context, snapshot) {
                   final docs = snapshot.data?.docs ?? [];
-                  
+
                   return FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
@@ -102,7 +184,8 @@ class _LocationScreenState extends State<LocationScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.familyos.app',
                       ),
                       MarkerLayer(
@@ -115,29 +198,47 @@ class _LocationScreenState extends State<LocationScreen> {
                               decoration: BoxDecoration(
                                 gradient: kGradMain,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withAlpha(40), width: 3),
-                                boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 15, spreadRadius: 2)],
+                                border: Border.all(
+                                  color: Colors.white.withAlpha(40),
+                                  width: 3,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: kPurple.withAlpha(100),
+                                    blurRadius: 15,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
                               ),
-                              child: const Icon(Icons.my_location, color: Colors.white, size: 22),
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Colors.white,
+                                size: 22,
+                              ),
                             ),
                           ),
                           if (snapshot.hasData)
-                            ...docs.where((doc) {
-                              final d = doc.data() as Map<String, dynamic>;
-                              return d['lat'] != null && d['lng'] != null;
-                            }).map((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              final initial = data['initial'] ?? '?';
-                              final grad = _getGrad(data['colorIndex'] ?? 0);
-                              final lat = (data['lat'] as num).toDouble();
-                              final lng = (data['lng'] as num).toDouble();
-                              return Marker(
-                                point: LatLng(lat, lng),
-                                width: 40,
-                                height: 40,
-                                child: _buildMapPin(initial, grad),
-                              );
-                            }),
+                            ...docs
+                                .where((doc) {
+                                  final d = doc.data() as Map<String, dynamic>;
+                                  return d['lat'] != null && d['lng'] != null;
+                                })
+                                .map((doc) {
+                                  final data =
+                                      doc.data() as Map<String, dynamic>;
+                                  final initial = data['initial'] ?? '?';
+                                  final grad = _getGrad(
+                                    data['colorIndex'] ?? 0,
+                                  );
+                                  final lat = (data['lat'] as num).toDouble();
+                                  final lng = (data['lng'] as num).toDouble();
+                                  return Marker(
+                                    point: LatLng(lat, lng),
+                                    width: 40,
+                                    height: 40,
+                                    child: _buildMapPin(initial, grad),
+                                  );
+                                }),
                         ],
                       ),
                     ],
@@ -154,51 +255,100 @@ class _LocationScreenState extends State<LocationScreen> {
               width: double.infinity,
               decoration: BoxDecoration(
                 color: kSurface,
-                borderRadius: const BorderRadius.only(topLeft: Radius.circular(30), topRight: Radius.circular(30)),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
                 border: Border.all(color: Colors.white.withAlpha(10), width: 1),
-                boxShadow: [BoxShadow(color: Colors.black.withAlpha(40), blurRadius: 20, offset: const Offset(0, -5))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(40),
+                    blurRadius: 20,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
                   const SizedBox(height: 12),
-                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.white.withAlpha(20), borderRadius: BorderRadius.circular(2))),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withAlpha(20),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                   const SizedBox(height: 20),
-                  
+
                   // Active sharing status
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                         const Text('Position partagée', style: TextStyle(fontFamily: 'Sora', fontSize: 16, fontWeight: FontWeight.w700, color: kText)),
-                         Container(
-                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                           decoration: BoxDecoration(color: kGreen.withAlpha(30), borderRadius: BorderRadius.circular(10)),
-                           child: const Row(
-                             children: [
-                               Icon(Icons.circle, color: kGreen, size: 8),
-                               SizedBox(width: 6),
-                               Text('En direct', style: TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w800, color: kGreen)),
-                             ],
-                           ),
-                         ),
+                        const Text(
+                          'Position partagée',
+                          style: TextStyle(
+                            fontFamily: 'Sora',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: kText,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: kGreen.withAlpha(30),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.circle, color: kGreen, size: 8),
+                              SizedBox(width: 6),
+                              Text(
+                                'En direct',
+                                style: TextStyle(
+                                  fontFamily: 'Nunito',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: kGreen,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // List of members
                   Expanded(
                     child: StreamBuilder<QuerySnapshot>(
                       stream: _db.getMembersStream(),
                       builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator(color: kPurple));
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(color: kPurple),
+                          );
                         }
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return const Center(child: Text("Aucun membre", style: TextStyle(color: kTextMuted, fontFamily: 'Nunito')));
+                          return const Center(
+                            child: Text(
+                              "Aucun membre",
+                              style: TextStyle(
+                                color: kTextMuted,
+                                fontFamily: 'Nunito',
+                              ),
+                            ),
+                          );
                         }
-                        
+
                         final docs = snapshot.data!.docs;
                         return ListView.builder(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -208,54 +358,110 @@ class _LocationScreenState extends State<LocationScreen> {
                             final name = data['name'] ?? 'Inconnu';
                             final initial = data['initial'] ?? '?';
                             final grad = _getGrad(data['colorIndex'] ?? i);
-                            final hasLocation = data['lat'] != null && data['lng'] != null;
-                            final locationText = hasLocation
-                              ? 'Position connue'
-                              : 'Position inconnue';
+                            final hasLocation =
+                                data['lat'] != null && data['lng'] != null;
+                            final lastSeen = data['lastLocationUpdate'] != null
+                                ? 'Vu il y a ${DateTime.now().difference((data['lastLocationUpdate'] as Timestamp).toDate()).inMinutes} min'
+                                : 'Position inconnue';
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: GestureDetector(
-                                onTap: hasLocation ? () {
-                                  final lat = (data['lat'] as num).toDouble();
-                                  final lng = (data['lng'] as num).toDouble();
-                                  _mapController.move(LatLng(lat, lng), 15);
-                                } : null,
+                                onTap: hasLocation
+                                    ? () {
+                                        setState(() => _followMe = false);
+                                        final lat = (data['lat'] as num)
+                                            .toDouble();
+                                        final lng = (data['lng'] as num)
+                                            .toDouble();
+                                        _mapController.move(
+                                          LatLng(lat, lng),
+                                          15,
+                                        );
+                                      }
+                                    : null,
                                 child: Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: kBg2,
                                     borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Colors.white.withAlpha(10), width: 1),
+                                    border: Border.all(
+                                      color: Colors.white.withAlpha(10),
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
                                       Container(
                                         width: 46,
                                         height: 46,
-                                        decoration: BoxDecoration(gradient: grad, borderRadius: BorderRadius.circular(14)),
+                                        decoration: BoxDecoration(
+                                          gradient: grad,
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                        ),
                                         alignment: Alignment.center,
-                                        child: Text(initial, style: const TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.w800, fontSize: 16, color: Colors.white)),
+                                        child: Text(
+                                          initial,
+                                          style: const TextStyle(
+                                            fontFamily: 'Nunito',
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                            color: Colors.white,
+                                          ),
+                                        ),
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            Text(name, style: const TextStyle(fontFamily: 'Nunito', fontSize: 15, fontWeight: FontWeight.w800, color: kText)),
+                                            Text(
+                                              name,
+                                              style: const TextStyle(
+                                                fontFamily: 'Nunito',
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w800,
+                                                color: kText,
+                                              ),
+                                            ),
                                             const SizedBox(height: 4),
                                             Row(
                                               children: [
-                                                Icon(hasLocation ? Icons.location_on : Icons.location_off, color: hasLocation ? kGreen : kTextDim, size: 12),
+                                                Icon(
+                                                  hasLocation
+                                                      ? Icons.location_on
+                                                      : Icons.location_off,
+                                                  color: hasLocation
+                                                      ? kGreen
+                                                      : kTextDim,
+                                                  size: 12,
+                                                ),
                                                 const SizedBox(width: 4),
-                                                Text(locationText, style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w600, color: kTextMuted)),
+                                                Text(
+                                                  lastSeen,
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Nunito',
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: kTextMuted,
+                                                  ),
+                                                ),
                                               ],
                                             ),
                                           ],
                                         ),
                                       ),
                                       if (hasLocation)
-                                        AppIconButton(icon: const Icon(Icons.navigation_outlined, color: kCyan, size: 18)),
+                                        AppIconButton(
+                                          icon: const Icon(
+                                            Icons.navigation_outlined,
+                                            color: kCyan,
+                                            size: 18,
+                                          ),
+                                        ),
                                     ],
                                   ),
                                 ),
@@ -275,8 +481,6 @@ class _LocationScreenState extends State<LocationScreen> {
     );
   }
 
-
-
   Widget _buildMapPin(String initial, LinearGradient grad) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -288,10 +492,24 @@ class _LocationScreenState extends State<LocationScreen> {
             gradient: grad,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
-            boxShadow: [BoxShadow(color: Colors.black.withAlpha(60), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(60),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           alignment: Alignment.center,
-          child: Text(initial, style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white)),
+          child: Text(
+            initial,
+            style: const TextStyle(
+              fontFamily: 'Nunito',
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
+          ),
         ),
         const SizedBox(height: 2),
         Container(
@@ -300,7 +518,9 @@ class _LocationScreenState extends State<LocationScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black.withAlpha(40), blurRadius: 4)],
+            boxShadow: [
+              BoxShadow(color: Colors.black.withAlpha(40), blurRadius: 4),
+            ],
           ),
         ),
       ],

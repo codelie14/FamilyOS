@@ -10,7 +10,10 @@ import '../tasks/tasks_screen.dart';
 import '../vault/vault_screen.dart';
 import '../notes/notes_screen.dart';
 import '../location/location_screen.dart';
+import '../profile/members_management_screen.dart';
+import '../../services/notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/firestore_service.dart';
 
 // ─── Model helpers ────────────────────────────────────────────────────────────
@@ -31,6 +34,36 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _db = FirestoreService();
+  String _userRole = 'member';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+    _updateFCMToken();
+  }
+
+  Future<void> _updateFCMToken() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final token = await NotificationService.getToken();
+      if (token != null) {
+        await _db.updateFCMToken(user.uid, token);
+      }
+    }
+  }
+
+  Future<void> _loadUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final data = await _db.getUserData(user.uid);
+      if (data != null && mounted) {
+        setState(() {
+          _userRole = data['role'] ?? 'member';
+        });
+      }
+    }
+  }
 
   LinearGradient _getGrad(int index) {
     const list = [
@@ -88,7 +121,18 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildHeroCard(),
                 const SizedBox(height: 20),
-                SectionHeader(title: 'Membres', action: 'Gérer'),
+                SectionHeader(
+                  title: 'Membres',
+                  action: _userRole == 'admin' ? 'Gérer' : null,
+                  onActionTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MembersManagementScreen(),
+                      ),
+                    );
+                  },
+                ),
                 _buildMembersRow(),
                 const SizedBox(height: 20),
                 const SectionHeader(title: 'Accès rapide'),
@@ -245,10 +289,15 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 4),
               StreamBuilder<DocumentSnapshot>(
-                stream: FirebaseFirestore.instance.collection('family_info').doc('details').snapshots(),
+                stream: FirebaseFirestore.instance
+                    .collection('family_info')
+                    .doc('details')
+                    .snapshots(),
                 builder: (context, snap) {
-                  final familyName = snap.hasData && snap.data!.exists 
-                      ? (snap.data!.data() as Map<String, dynamic>)['familyName'] ?? 'Notre Famille'
+                  final familyName = snap.hasData && snap.data!.exists
+                      ? (snap.data!.data()
+                                as Map<String, dynamic>)['familyName'] ??
+                            'Notre Famille'
                       : 'Notre Famille';
                   return Text(
                     familyName,

@@ -12,6 +12,7 @@ import '../../services/cloudinary_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/firestore_service.dart';
+import 'members_management_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,18 +26,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _darkMode = true;
   bool _notifications = true;
   bool _locationSharing = false;
+  String _userRole = 'member';
 
   void _loadPreferences() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    
-    final doc = await FirebaseFirestore.instance.collection('members').doc(uid).get();
-    if (doc.exists && mounted) {
-      final data = doc.data() as Map<String, dynamic>;
+
+    final data = await db.getUserData(uid);
+    if (data != null && mounted) {
       setState(() {
         _darkMode = data['darkMode'] ?? true;
         _notifications = data['notifications'] ?? true;
         _locationSharing = data['locationSharing'] ?? false;
+        _userRole = data['role'] ?? 'member';
       });
     }
   }
@@ -52,14 +54,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickAndUploadAvatar() async {
     final picker = ImagePicker();
-    final xfile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final xfile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
     if (xfile == null) return;
 
     setState(() => _isUploadingAvatar = true);
     try {
       final file = File(xfile.path);
       final cloudinary = CloudinaryService();
-      final url = await cloudinary.uploadImage(file, folder: 'familyos_avatars');
+      final url = await cloudinary.uploadImage(
+        file,
+        folder: 'familyos_avatars',
+      );
       if (url != null) {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
@@ -71,7 +79,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
     } finally {
       if (mounted) setState(() => _isUploadingAvatar = false);
     }
@@ -89,10 +100,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Modifier le profil', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom d\'affichage', hintStyle: TextStyle(color: kTextMuted))),
+        title: const Text(
+          'Modifier le profil',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          style: const TextStyle(color: kText),
+          decoration: const InputDecoration(
+            hintText: 'Nom d\'affichage',
+            hintStyle: TextStyle(color: kTextMuted),
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () async {
               if (nameCtrl.text.isNotEmpty) {
@@ -100,7 +124,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (!mounted) return;
                 setState(() {});
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil mis à jour')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Profil mis à jour')),
+                );
               }
             },
             child: const Text('Enregistrer', style: TextStyle(color: kPurple)),
@@ -115,17 +141,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Réinitialiser le mot de passe', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: const Text('Un email de réinitialisation sera envoyé à votre adresse.', style: TextStyle(fontFamily: 'Nunito', color: kText)),
+        title: const Text(
+          'Réinitialiser le mot de passe',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
+        content: const Text(
+          'Un email de réinitialisation sera envoyé à votre adresse.',
+          style: TextStyle(fontFamily: 'Nunito', color: kText),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () async {
               if (user.email != null) {
-                await FirebaseAuth.instance.sendPasswordResetEmail(email: user.email!);
+                await FirebaseAuth.instance.sendPasswordResetEmail(
+                  email: user.email!,
+                );
                 if (!mounted) return;
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Email envoyé à ${user.email}')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Email envoyé à ${user.email}')),
+                );
               }
             },
             child: const Text('Envoyer', style: TextStyle(color: kPurple)),
@@ -139,7 +178,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Generate a random 6-char alphanumeric code
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final rand = Random.secure();
-    final code = 'FAM-${List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join()}';
+    final code =
+        'FAM-${List.generate(6, (_) => chars[rand.nextInt(chars.length)]).join()}';
 
     // Save to Firestore with 24h expiry
     final expiry = DateTime.now().add(const Duration(hours: 24));
@@ -155,26 +195,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Inviter un membre', style: TextStyle(fontFamily: 'Sora', color: kText)),
+        title: const Text(
+          'Inviter un membre',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Partagez ce code à votre proche. Il expire dans 24h.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Nunito', color: kTextMuted, fontSize: 13)),
+            const Text(
+              'Partagez ce code à votre proche. Il expire dans 24h.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: 'Nunito',
+                color: kTextMuted,
+                fontSize: 13,
+              ),
+            ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              decoration: BoxDecoration(color: kBg2, borderRadius: BorderRadius.circular(12)),
-              child: Text(code, style: const TextStyle(fontFamily: 'Sora', color: kCyan, fontSize: 22, fontWeight: FontWeight.bold, letterSpacing: 2)),
+              decoration: BoxDecoration(
+                color: kBg2,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                code,
+                style: const TextStyle(
+                  fontFamily: 'Sora',
+                  color: kCyan,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 2,
+                ),
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fermer')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
           TextButton(
             onPressed: () {
               Clipboard.setData(ClipboardData(text: code));
               Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code copié dans le presse-papiers')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Code copié dans le presse-papiers'),
+                ),
+              );
             },
             child: const Text('Copier', style: TextStyle(color: kPurple)),
           ),
@@ -188,10 +258,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Rôles et permissions', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: const Text('Gérez qui peut modifier les fichiers, ajouter des événements, ou inviter de nouveaux membres. (Fonctionnalité à venir)', style: TextStyle(fontFamily: 'Nunito', color: kText)),
+        title: const Text(
+          'Rôles et permissions',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
+        content: const Text(
+          'Gérez qui peut modifier les fichiers, ajouter des événements, ou inviter de nouveaux membres. (Fonctionnalité à venir)',
+          style: TextStyle(fontFamily: 'Nunito', color: kText),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Ok', style: TextStyle(color: kPurple))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Ok', style: TextStyle(color: kPurple)),
+          ),
         ],
       ),
     );
@@ -203,17 +282,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: kSurface,
-        title: const Text('Paramètres familiaux', style: TextStyle(fontFamily: 'Sora', color: kText)),
-        content: TextField(controller: nameCtrl, style: const TextStyle(color: kText), decoration: const InputDecoration(hintText: 'Nom de la famille', hintStyle: TextStyle(color: kTextMuted))),
+        title: const Text(
+          'Paramètres familiaux',
+          style: TextStyle(fontFamily: 'Sora', color: kText),
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          style: const TextStyle(color: kText),
+          decoration: const InputDecoration(
+            hintText: 'Nom de la famille',
+            hintStyle: TextStyle(color: kTextMuted),
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler'),
+          ),
           TextButton(
             onPressed: () async {
               if (nameCtrl.text.isNotEmpty) {
-                await FirebaseFirestore.instance.collection('family_info').doc('details').set({'familyName': nameCtrl.text.trim()}, SetOptions(merge: true));
+                await FirebaseFirestore.instance
+                    .collection('family_info')
+                    .doc('details')
+                    .set({
+                      'familyName': nameCtrl.text.trim(),
+                    }, SetOptions(merge: true));
                 if (!mounted) return;
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Nom de famille mis à jour')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Nom de famille mis à jour')),
+                );
               }
             },
             child: const Text('Enregistrer', style: TextStyle(color: kPurple)),
@@ -230,7 +329,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userEmail = user?.email ?? 'Nom, email, photo';
     final userInitial = userName.isNotEmpty ? userName[0].toUpperCase() : 'A';
 
-    Widget settingItem(IconData icon, Color color, String title, String sub, String type, {VoidCallback? onTap}) {
+    Widget settingItem(
+      IconData icon,
+      Color color,
+      String title,
+      String sub,
+      String type, {
+      VoidCallback? onTap,
+    }) {
       return GestureDetector(
         onTap: onTap,
         child: Padding(
@@ -243,7 +349,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Container(
                   width: 38,
                   height: 38,
-                  decoration: BoxDecoration(color: color.withAlpha(38), borderRadius: BorderRadius.circular(11)),
+                  decoration: BoxDecoration(
+                    color: color.withAlpha(38),
+                    borderRadius: BorderRadius.circular(11),
+                  ),
                   child: Icon(icon, color: color, size: 18),
                 ),
                 const SizedBox(width: 12),
@@ -251,8 +360,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kText)),
-                      Text(sub, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w600, color: kTextMuted)),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: kText,
+                        ),
+                      ),
+                      Text(
+                        sub,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: kTextMuted,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -280,7 +405,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(color: Colors.black.withAlpha(76), blurRadius: 6)],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(76),
+                                  blurRadius: 6,
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -298,17 +428,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: kBg2,
       body: Column(
         children: [
-          const SafeArea(
-            bottom: false,
-            child: SizedBox.shrink(),
-          ),
+          const SafeArea(bottom: false, child: SizedBox.shrink()),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Profil', style: TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
-                AppIconButton(icon: const Icon(Icons.edit_outlined, color: kTextMuted, size: 18)),
+                const Text(
+                  'Profil',
+                  style: TextStyle(
+                    fontFamily: 'Sora',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: kText,
+                  ),
+                ),
+                AppIconButton(
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    color: kTextMuted,
+                    size: 18,
+                  ),
+                ),
               ],
             ),
           ),
@@ -316,30 +457,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: db.getMembersStream(),
               builder: (context, memberSnap) {
-                final mCount = memberSnap.hasData ? memberSnap.data!.docs.length : 0;
-                
+                final mCount = memberSnap.hasData
+                    ? memberSnap.data!.docs.length
+                    : 0;
+
                 final settings = [
-                  [Icons.person_outline, kPurple, 'Informations personnelles', userEmail, 'arrow', () => _showEditProfileDialog(user!)],
-                  [Icons.group_add_outlined, kBlue, 'Ajouter un membre', 'Inviter dans la famille', 'arrow', () => _showInviteDialog()],
-                  [Icons.admin_panel_settings_outlined, kOrange, 'Rôles et permissions', 'Gérer les accès', 'arrow', () => _showRolesDialog()],
-                  [Icons.home_outlined, kPink, 'Paramètres familiaux', 'Nom et préférences', 'arrow', () => _showFamilySettingsDialog()],
+                  [
+                    Icons.person_outline,
+                    kPurple,
+                    'Informations personnelles',
+                    userEmail,
+                    'arrow',
+                    () => _showEditProfileDialog(user!),
+                  ],
+                  [
+                    Icons.group_add_outlined,
+                    kBlue,
+                    'Ajouter un membre',
+                    'Inviter dans la famille',
+                    'arrow',
+                    () {
+                      if (_userRole == 'admin') {
+                        _showInviteDialog();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Réservé aux administrateurs'),
+                          ),
+                        );
+                      }
+                    },
+                  ],
+                  [
+                    Icons.admin_panel_settings_outlined,
+                    kOrange,
+                    'Gérer la famille',
+                    'Rôles et accès',
+                    'arrow',
+                    () {
+                      if (_userRole == 'admin') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                const MembersManagementScreen(),
+                          ),
+                        );
+                      } else {
+                        _showRolesDialog();
+                      }
+                    },
+                  ],
+                  [
+                    Icons.home_outlined,
+                    kPink,
+                    'Paramètres familiaux',
+                    'Nom et préférences',
+                    'arrow',
+                    () {
+                      if (_userRole == 'admin') {
+                        _showFamilySettingsDialog();
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Réservé aux administrateurs'),
+                          ),
+                        );
+                      }
+                    },
+                  ],
                 ];
                 final security = [
-                  [Icons.lock_outline, kOrange, 'Mot de passe', 'Dernière modification récente', 'arrow', () => _showPasswordResetDialog(user!)],
+                  [
+                    Icons.lock_outline,
+                    kOrange,
+                    'Mot de passe',
+                    'Dernière modification récente',
+                    'arrow',
+                    () => _showPasswordResetDialog(user!),
+                  ],
                 ];
                 final prefs = [
-                  [Icons.dark_mode_outlined, kPurple, 'Mode sombre', _darkMode ? 'Activé' : 'Désactivé', _darkMode ? 'toggle_on' : 'toggle_off', () {
-                    setState(() => _darkMode = !_darkMode);
-                    _updatePref('darkMode', _darkMode);
-                  }],
-                  [Icons.notifications_outlined, kPink, 'Notifications', _notifications ? 'Toutes activées' : 'Désactivées', _notifications ? 'toggle_on' : 'toggle_off', () {
-                    setState(() => _notifications = !_notifications);
-                    _updatePref('notifications', _notifications);
-                  }],
-                  [Icons.location_on_outlined, kGreen, 'Partage de position', _locationSharing ? 'Activé' : 'Désactivé', _locationSharing ? 'toggle_on' : 'toggle_off', () {
-                    setState(() => _locationSharing = !_locationSharing);
-                    _updatePref('locationSharing', _locationSharing);
-                  }],
+                  [
+                    Icons.dark_mode_outlined,
+                    kPurple,
+                    'Mode sombre',
+                    _darkMode ? 'Activé' : 'Désactivé',
+                    _darkMode ? 'toggle_on' : 'toggle_off',
+                    () {
+                      setState(() => _darkMode = !_darkMode);
+                      _updatePref('darkMode', _darkMode);
+                    },
+                  ],
+                  [
+                    Icons.notifications_outlined,
+                    kPink,
+                    'Notifications',
+                    _notifications ? 'Toutes activées' : 'Désactivées',
+                    _notifications ? 'toggle_on' : 'toggle_off',
+                    () {
+                      setState(() => _notifications = !_notifications);
+                      _updatePref('notifications', _notifications);
+                    },
+                  ],
+                  [
+                    Icons.location_on_outlined,
+                    kGreen,
+                    'Partage de position',
+                    _locationSharing ? 'Activé' : 'Désactivé',
+                    _locationSharing ? 'toggle_on' : 'toggle_off',
+                    () {
+                      setState(() => _locationSharing = !_locationSharing);
+                      _updatePref('locationSharing', _locationSharing);
+                    },
+                  ],
                 ];
 
                 return ListView(
@@ -359,14 +590,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 decoration: BoxDecoration(
                                   gradient: kGradMain,
                                   borderRadius: BorderRadius.circular(28),
-                                  border: Border.all(color: Colors.white.withAlpha(38), width: 3),
-                                  boxShadow: [BoxShadow(color: kPurple.withAlpha(100), blurRadius: 36, offset: const Offset(0, 12))],
-                                  image: user?.photoURL != null ? DecorationImage(image: NetworkImage(user!.photoURL!), fit: BoxFit.cover) : null,
+                                  border: Border.all(
+                                    color: Colors.white.withAlpha(38),
+                                    width: 3,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: kPurple.withAlpha(100),
+                                      blurRadius: 36,
+                                      offset: const Offset(0, 12),
+                                    ),
+                                  ],
+                                  image: user?.photoURL != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(user!.photoURL!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                                 ),
                                 alignment: Alignment.center,
                                 child: _isUploadingAvatar
-                                  ? const CircularProgressIndicator(color: Colors.white)
-                                  : (user?.photoURL == null ? Text(userInitial, style: const TextStyle(fontFamily: 'Nunito', fontSize: 36, fontWeight: FontWeight.w800, color: Colors.white)) : null),
+                                    ? const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      )
+                                    : (user?.photoURL == null
+                                          ? Text(
+                                              userInitial,
+                                              style: const TextStyle(
+                                                fontFamily: 'Nunito',
+                                                fontSize: 36,
+                                                fontWeight: FontWeight.w800,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : null),
                               ),
                               Positioned(
                                 bottom: -4,
@@ -379,28 +636,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     borderRadius: BorderRadius.circular(9),
                                     border: Border.all(color: kBg2, width: 2),
                                   ),
-                                  child: const Icon(Icons.edit, color: kTextMuted, size: 13),
+                                  child: const Icon(
+                                    Icons.edit,
+                                    color: kTextMuted,
+                                    size: 13,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 14),
-                        Text(userName, style: const TextStyle(fontFamily: 'Sora', fontSize: 22, fontWeight: FontWeight.w700, color: kText)),
+                        Text(
+                          userName,
+                          style: const TextStyle(
+                            fontFamily: 'Sora',
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: kText,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 5,
+                          ),
                           decoration: BoxDecoration(
                             color: kPurple.withAlpha(38),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: kPurple.withAlpha(64), width: 1),
+                            border: Border.all(
+                              color: kPurple.withAlpha(64),
+                              width: 1,
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.shield_outlined, color: kPurpleLight, size: 12),
+                              const Icon(
+                                Icons.shield_outlined,
+                                color: kPurpleLight,
+                                size: 12,
+                              ),
                               const SizedBox(width: 6),
-                              Text('$userName • Famille', style: const TextStyle(fontFamily: 'Nunito', fontSize: 12, fontWeight: FontWeight.w700, color: kPurpleLight)),
+                              Text(
+                                '$userName • Famille',
+                                style: const TextStyle(
+                                  fontFamily: 'Nunito',
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: kPurpleLight,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -409,69 +696,133 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     // Stats
                     SurfaceCard(
-                      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 28),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 28,
+                      ),
                       radius: 18,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
                           _pStat(mCount.toString(), 'Membres'),
-                          Container(width: 1, height: 40, color: Colors.white.withAlpha(18)),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: Colors.white.withAlpha(18),
+                          ),
                           StreamBuilder<QuerySnapshot>(
                             stream: db.getFilesStream(),
-                            builder: (ctx, fileSnap) => _pStat(fileSnap.hasData ? fileSnap.data!.docs.length.toString() : '0', 'Fichiers'),
+                            builder: (ctx, fileSnap) => _pStat(
+                              fileSnap.hasData
+                                  ? fileSnap.data!.docs.length.toString()
+                                  : '0',
+                              'Fichiers',
+                            ),
                           ),
-                          Container(width: 1, height: 40, color: Colors.white.withAlpha(18)),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            color: Colors.white.withAlpha(18),
+                          ),
                           StreamBuilder<QuerySnapshot>(
                             stream: db.getFamilyChatStream(),
-                            builder: (ctx, msgSnap) => _pStat(msgSnap.hasData ? msgSnap.data!.docs.length.toString() : '0', 'Messages'),
+                            builder: (ctx, msgSnap) => _pStat(
+                              msgSnap.hasData
+                                  ? msgSnap.data!.docs.length.toString()
+                                  : '0',
+                              'Messages',
+                            ),
                           ),
                         ],
                       ),
                     ),
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Compte'),
-                ...settings.map((s) => settingItem(s[0] as IconData, s[1] as Color, s[2] as String, s[3] as String, s[4] as String, onTap: s[5] as VoidCallback?)),
-                const SizedBox(height: 16),
-                const SectionHeader(title: 'Sécurité'),
-                ...security.map((s) => settingItem(s[0] as IconData, s[1] as Color, s[2] as String, s[3] as String, s[4] as String, onTap: s[5] as VoidCallback?)),
-                const SizedBox(height: 16),
-                const SectionHeader(title: 'Préférences'),
-                ...prefs.map((s) => settingItem(s[0] as IconData, s[1] as Color, s[2] as String, s[3] as String, s[4] as String, onTap: s[5] as VoidCallback?)),
-                const SizedBox(height: 20),
-                GestureDetector(
-                  onTap: () async {
-                    await AuthService().signOut();
-                    if (!context.mounted) return;
-                    Navigator.pushAndRemoveUntil(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      (route) => false,
-                    );
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: kRed.withAlpha(25),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: kRed.withAlpha(51), width: 1),
+                    const SizedBox(height: 20),
+                    const SectionHeader(title: 'Compte'),
+                    ...settings.map(
+                      (s) => settingItem(
+                        s[0] as IconData,
+                        s[1] as Color,
+                        s[2] as String,
+                        s[3] as String,
+                        s[4] as String,
+                        onTap: s[5] as VoidCallback?,
+                      ),
                     ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout, color: kRed, size: 17),
-                        SizedBox(width: 8),
-                        Text('Se déconnecter', style: TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w800, color: kRed)),
-                      ],
+                    const SizedBox(height: 16),
+                    const SectionHeader(title: 'Sécurité'),
+                    ...security.map(
+                      (s) => settingItem(
+                        s[0] as IconData,
+                        s[1] as Color,
+                        s[2] as String,
+                        s[3] as String,
+                        s[4] as String,
+                        onTap: s[5] as VoidCallback?,
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            );
-          },
-        ),
-      ),
-      AppBottomNavBar(currentIndex: 4, onTap: (i) => handleNavBarTap(context, i, 4)),
+                    const SizedBox(height: 16),
+                    const SectionHeader(title: 'Préférences'),
+                    ...prefs.map(
+                      (s) => settingItem(
+                        s[0] as IconData,
+                        s[1] as Color,
+                        s[2] as String,
+                        s[3] as String,
+                        s[4] as String,
+                        onTap: s[5] as VoidCallback?,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    GestureDetector(
+                      onTap: () async {
+                        await AuthService().signOut();
+                        if (!context.mounted) return;
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: kRed.withAlpha(25),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: kRed.withAlpha(51),
+                            width: 1,
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout, color: kRed, size: 17),
+                            SizedBox(width: 8),
+                            Text(
+                              'Se déconnecter',
+                              style: TextStyle(
+                                fontFamily: 'Nunito',
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: kRed,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                );
+              },
+            ),
+          ),
+          AppBottomNavBar(
+            currentIndex: 4,
+            onTap: (i) => handleNavBarTap(context, i, 4),
+          ),
         ],
       ),
     );
@@ -480,8 +831,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _pStat(String value, String label) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontFamily: 'Nunito', fontSize: 20, fontWeight: FontWeight.w900, color: kText)),
-        Text(label, style: const TextStyle(fontFamily: 'Nunito', fontSize: 11, fontWeight: FontWeight.w700, color: kTextMuted)),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: 'Nunito',
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: kText,
+          ),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: 'Nunito',
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: kTextMuted,
+          ),
+        ),
       ],
     );
   }

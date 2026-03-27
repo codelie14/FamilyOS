@@ -115,48 +115,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  void _showAddMemberDialog() {
-    final nameCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        title: const Text(
-          'Ajouter un membre',
-          style: TextStyle(fontFamily: 'Sora', color: kText),
-        ),
-        content: TextField(
-          controller: nameCtrl,
-          style: const TextStyle(color: kText),
-          decoration: const InputDecoration(
-            hintText: 'Nom...',
-            hintStyle: TextStyle(color: kTextMuted),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (nameCtrl.text.isNotEmpty) {
-                _db.addMember({
-                  'name': nameCtrl.text.trim(),
-                  'initial': nameCtrl.text.trim()[0].toUpperCase(),
-                  'isOnline': true,
-                  'colorIndex': DateTime.now().millisecond % 5,
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Ajouter', style: TextStyle(color: kPurple)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -191,14 +149,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: _showAddDMDialog,
-                      onLongPress: _showAddMemberDialog,
                       child: AppIconButton(
                         icon: const Icon(
                           Icons.edit_outlined,
                           color: kTextMuted,
                           size: 18,
                         ),
-                        showDot: true,
                       ),
                     ),
                   ],
@@ -211,22 +167,45 @@ class _ChatListScreenState extends State<ChatListScreen> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
             child: TextField(
               controller: _searchCtrl,
-              onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
-              style: const TextStyle(fontFamily: 'Nunito', fontSize: 14, color: kText),
+              onChanged: (val) =>
+                  setState(() => _searchQuery = val.toLowerCase()),
+              style: const TextStyle(
+                fontFamily: 'Nunito',
+                fontSize: 14,
+                color: kText,
+              ),
               decoration: InputDecoration(
                 hintText: 'Rechercher un message…',
-                hintStyle: const TextStyle(fontFamily: 'Nunito', fontSize: 14, fontWeight: FontWeight.w600, color: kTextDim),
-                prefixIcon: const Icon(Icons.search, color: kTextMuted, size: 18),
+                hintStyle: const TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: kTextDim,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: kTextMuted,
+                  size: 18,
+                ),
                 filled: true,
                 fillColor: kSurface,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1),
+                  borderSide: BorderSide(
+                    color: Colors.white.withAlpha(15),
+                    width: 1,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: Colors.white.withAlpha(15), width: 1),
+                  borderSide: BorderSide(
+                    color: Colors.white.withAlpha(15),
+                    width: 1,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -362,49 +341,64 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       return d;
                     }).toList();
 
-                      return StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance.collection('family_info').doc('details').snapshots(),
-                        builder: (context, infoSnap) {
-                          final familyName = infoSnap.hasData && infoSnap.data!.exists 
-                              ? (infoSnap.data!.data() as Map<String, dynamic>)['familyName'] ?? 'Notre Famille'
-                              : 'Notre Famille';
-                              
-                          final filteredDms = _searchQuery.isEmpty 
-                              ? dms 
-                              : dms.where((d) => (d['name']?.toString().toLowerCase() ?? '').contains(_searchQuery)).toList();
-                              
-                          final familyMatch = _searchQuery.isEmpty || 
-                              familyName.toLowerCase().contains(_searchQuery) || 
-                              'notre famille'.contains(_searchQuery);
+                    return StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection('family_info')
+                          .doc('details')
+                          .snapshots(),
+                      builder: (context, infoSnap) {
+                        final familyName =
+                            infoSnap.hasData && infoSnap.data!.exists
+                            ? (infoSnap.data!.data()
+                                      as Map<String, dynamic>)['familyName'] ??
+                                  'Notre Famille'
+                            : 'Notre Famille';
 
-                          return ListView(
-                            children: [
-                              if (familyMatch) ...[
-                                _dateSep('Aujourd\'hui'),
-                                _convTile(
-                                  _Conv(
-                                    null,
-                                    '🏠',
-                                    const LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: [kPurple, kBlue],
-                                    ),
-                                    '$familyName 👨‍👩‍👧‍👦',
-                                    lastFamMsg,
-                                    lastFamTime,
-                                    0,
-                                    true,
-                                    isGroup: true,
+                        final filteredDms = _searchQuery.isEmpty
+                            ? dms
+                            : dms
+                                  .where(
+                                    (d) =>
+                                        (d['name']?.toString().toLowerCase() ??
+                                                '')
+                                            .contains(_searchQuery),
+                                  )
+                                  .toList();
+
+                        final familyMatch =
+                            _searchQuery.isEmpty ||
+                            familyName.toLowerCase().contains(_searchQuery) ||
+                            'notre famille'.contains(_searchQuery);
+
+                        return ListView(
+                          children: [
+                            if (familyMatch) ...[
+                              _dateSep('Aujourd\'hui'),
+                              _convTile(
+                                _Conv(
+                                  null,
+                                  '🏠',
+                                  const LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [kPurple, kBlue],
                                   ),
+                                  '$familyName 👨‍👩‍👧‍👦',
+                                  lastFamMsg,
+                                  lastFamTime,
+                                  0,
+                                  true,
+                                  isGroup: true,
                                 ),
-                              ],
-                              if (filteredDms.isNotEmpty) _dateSep('Messages directs'),
-                              ...filteredDms.map((data) {
-                                final timeStr = data['lastTime'] != null
-                                    ? DateFormat('dd MMM').format(
-                                        (data['lastTime'] as Timestamp).toDate(),
-                                      )
+                              ),
+                            ],
+                            if (filteredDms.isNotEmpty)
+                              _dateSep('Messages directs'),
+                            ...filteredDms.map((data) {
+                              final timeStr = data['lastTime'] != null
+                                  ? DateFormat('dd MMM').format(
+                                      (data['lastTime'] as Timestamp).toDate(),
+                                    )
                                   : '';
                               return _convTile(
                                 _Conv(
@@ -421,7 +415,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             }).toList(),
                           ],
                         );
-                      }
+                      },
                     );
                   },
                 );
