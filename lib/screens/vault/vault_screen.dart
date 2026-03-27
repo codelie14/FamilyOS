@@ -52,10 +52,6 @@ class _VaultScreenState extends State<VaultScreen> {
       if (canAuthenticate) {
         final bool didAuthenticate = await _auth.authenticate(
           localizedReason: 'Veuillez vous authentifier pour accéder au coffre',
-          options: const AuthenticationOptions(
-            biometricOnly: true,
-            stickyAuth: true,
-          ),
         );
         if (didAuthenticate && mounted) {
           setState(() {
